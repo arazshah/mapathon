@@ -24,7 +24,7 @@ export default function MapView({ geojson, mapRef }: MapViewProps) {
           osm: {
             type: "raster",
             // ✅ tiles array - نه url
-            tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
+            tiles: ["https://tiles.stadiamaps.com/tiles/osm_bright/{z}/{x}/{y}.png"],
             tileSize: 256,
             attribution: "© OpenStreetMap",
           },
