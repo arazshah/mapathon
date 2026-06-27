@@ -1,6 +1,5 @@
 """
 ساخت خروجی استاندارد برای frontend
-هر query → answer + map + report
 """
 import re
 
@@ -19,7 +18,8 @@ def build_response(question: str, plan: dict, exec_result: dict) -> dict:
         }
 
     context = exec_result.get("context", {})
-    answer = exec_result.get("answer") or _build_answer(exec_result.get("final_template", ""), context)
+    template = exec_result.get("final_template", "")
+    answer = exec_result.get("answer") or _build_answer(template, context)
     map_data = _build_map(context)
     report = _build_report(context)
 
@@ -35,26 +35,64 @@ def build_response(question: str, plan: dict, exec_result: dict) -> dict:
 
 
 def _build_answer(template: str, context: dict) -> str:
-    """جایگزینی {var.field} با مقادیر واقعی"""
+    """
+    جایگزینی placeholder ها با مقادیر واقعی
+    پشتیبانی از: {var.field} و [var.field] و {var}
+    """
     if not template:
         return "پاسخ آماده است"
+
     answer = template
-    for ph in re.findall(r"\{([^}]+)\}", template):
+
+    # ۱. تبدیل [var.field] به {var.field} (LLM گاهی این فرمت می‌فرسته)
+    answer = re.sub(r'\[([^\]]+)\]', r'{\1}', answer)
+
+    # ۲. جایگزینی {var.field.subfield}
+    for ph in re.findall(r"\{([^}]+)\}", answer):
         val = _get_nested(context, ph)
-        answer = answer.replace(f"{{{ph}}}", str(val) if val is not None else "?")
+        if val is not None:
+            # اگر dict بود → فرمت کن
+            if isinstance(val, dict):
+                formatted = _format_dict_value(ph, val)
+            else:
+                formatted = str(val)
+            answer = answer.replace(f"{{{ph}}}", formatted)
+        else:
+            # placeholder حل نشد → نشانه سوال
+            answer = answer.replace(f"{{{ph}}}", "?")
+
     return answer
 
 
+def _format_dict_value(key: str, val: dict) -> str:
+    """تبدیل dict به رشته خوانا"""
+    # مساحت
+    if "area_m2" in val:
+        m2 = val.get("area_m2", 0)
+        ha = val.get("area_hectares", 0)
+        return f"{m2:,.1f} متر مربع ({ha:.2f} هکتار)"
+    # فاصله
+    if "distance_km" in val:
+        return val.get("distance_display", f"{val['distance_km']:.2f} کیلومتر")
+    # geocode best_match
+    if "best_match" in val:
+        bm = val["best_match"]
+        return bm.get("name", str(val))
+    # نتیجه bool
+    if "inside" in val:
+        return "بله، داخل است" if val["inside"] else "خیر، خارج است"
+    # پیش‌فرض
+    return str(val)
+
+
 def _build_map(context: dict) -> dict | None:
-    """استخراج geojson + محاسبه center و zoom برای MapLibre"""
+    """استخراج geojson + محاسبه center و zoom"""
     features = []
     for val in context.values():
         if not isinstance(val, dict):
             continue
-        # FeatureCollection (osm_search)
         if val.get("type") == "FeatureCollection":
             features.extend(val.get("features", []))
-        # geocode results
         elif "results" in val and isinstance(val["results"], list):
             for r in val["results"]:
                 if r.get("geojson"):
@@ -63,7 +101,6 @@ def _build_map(context: dict) -> dict | None:
                         "geometry": r["geojson"],
                         "properties": {"name": r.get("name"), "type": r.get("type")},
                     })
-        # نتیجه هندسی تک (buffer/intersection)
         elif val.get("geometry"):
             features.append({
                 "type": "Feature",
@@ -84,22 +121,17 @@ def _build_map(context: dict) -> dict | None:
 
 
 def _build_report(context: dict) -> dict | None:
-    """ساخت گزارش متناسب با نوع نتیجه: distance / list / area / stat"""
+    """ساخت گزارش متناسب با نوع نتیجه"""
     for val in context.values():
         if not isinstance(val, dict):
             continue
-
-        # فاصله
         if "distance_km" in val:
             return {
                 "type": "distance",
                 "distance_km": val["distance_km"],
-                "distance_meters": val.get("distance_meters"),
-                "point1": val.get("point1"),
-                "point2": val.get("point2"),
+                "distance_meters": val.get("distance_m"),
+                "display": val.get("distance_display"),
             }
-
-        # مساحت
         if "area_km2" in val:
             return {
                 "type": "area",
@@ -107,8 +139,6 @@ def _build_report(context: dict) -> dict | None:
                 "area_hectares": val.get("area_hectares"),
                 "area_km2": val.get("area_km2"),
             }
-
-        # لیست مکان‌ها (osm_search)
         if val.get("type") == "FeatureCollection":
             items = [
                 {
@@ -120,12 +150,17 @@ def _build_report(context: dict) -> dict | None:
                 for f in val.get("features", [])
             ]
             return {"type": "list", "count": val.get("count", len(items)), "items": items}
-
+        if "inside" in val:
+            return {
+                "type": "point_in_polygon",
+                "inside": val["inside"],
+                "polygon_area_m2": val.get("polygon_area_m2"),
+            }
     return None
 
 
 def _compute_view(features: list) -> tuple:
-    """محاسبه center و zoom از مجموعه نقاط"""
+    """محاسبه center و zoom"""
     lngs, lats = [], []
     for f in features:
         geom = f.get("geometry", {})
@@ -135,18 +170,11 @@ def _compute_view(features: list) -> tuple:
             lats.append(coords[1])
 
     if not lngs:
-        return [51.389, 35.6892], 11  # پیش‌فرض تهران
+        return [51.389, 35.6892], 11
 
     center = [sum(lngs) / len(lngs), sum(lats) / len(lats)]
     span = max(max(lngs) - min(lngs), max(lats) - min(lats))
-    if span < 0.01:
-        zoom = 15
-    elif span < 0.05:
-        zoom = 13
-    elif span < 0.2:
-        zoom = 11
-    else:
-        zoom = 9
+    zoom = 15 if span < 0.01 else 13 if span < 0.05 else 11 if span < 0.2 else 9
     return center, zoom
 
 
