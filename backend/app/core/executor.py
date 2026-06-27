@@ -2,6 +2,7 @@
 Executor - اجرای مراحل plan با اتصال به geo_tools واقعی
 """
 import re
+import json
 from typing import Any, Dict
 
 # Import کد واقعی از geo_tools
@@ -19,6 +20,23 @@ from app.geo_tools.geometry import (
 )
 
 
+def _normalize_braces(obj: Any) -> Any:
+    """تبدیل {var.path} به $var.path در مقادیر params (خطای رایج LLM)"""
+    if isinstance(obj, str):
+        # اگر کل رشته یک placeholder آکولادی است
+        m = re.fullmatch(r"\{([a-zA-Z_][a-zA-Z0-9_.\[\]]*)\}", obj.strip())
+        if m:
+            return "$" + m.group(1)
+        # جایگزینی‌های میانی
+        pattern = r"\{([a-zA-Z_][a-zA-Z0-9_.\[\]]*)\}"
+        return re.sub(pattern, r"$", obj)
+    elif isinstance(obj, dict):
+        return {k: _normalize_braces(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [_normalize_braces(i) for i in obj]
+    return obj
+
+
 def execute_plan(plan: Dict[str, Any]) -> Dict[str, Any]:
     """اجرای مراحل plan"""
     context = {}
@@ -30,7 +48,7 @@ def execute_plan(plan: Dict[str, Any]) -> Dict[str, Any]:
         params = step_config.get("params", {})
         save_as = step_config.get("save_as", "")
 
-                try:
+        try:
             # نرمال‌سازی آکولادها به فرمت استاندارد متغیرها
             params = _normalize_braces(params)
             # جایگزینی متغیرها
@@ -81,38 +99,6 @@ def execute_plan(plan: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def _normalize_braces(obj: Any) -> Any:
-    """تبدیل {var.path} به $var.path در مقادیر params (خطای رایج LLM)"""
-    import re
-    if isinstance(obj, str):
-        # فقط اگر کل رشته یک placeholder آکولادی است
-        m = re.fullmatch(r'\{([a-zA-Z_][a-zA-Z0-9_.\[\]]*)\}', obj.strip())
-        if m:
-            return "$" + m.group(1)
-        return obj
-    elif isinstance(obj, dict):
-        return {k: _normalize_braces(v) for k, v in obj.items()}
-    elif isinstance(obj, list):
-        return [_normalize_braces(i) for i in obj]
-    return obj
-
-
-def _normalize_braces(obj: Any) -> Any:
-    """تبدیل {var.path} به $var.path در مقادیر params (خطای رایج LLM)"""
-    import re
-    if isinstance(obj, str):
-        # فقط اگر کل رشته یک placeholder آکولادی است
-        m = re.fullmatch(r'\{([a-zA-Z_][a-zA-Z0-9_.\[\]]*)\}', obj.strip())
-        if m:
-            return "$" + m.group(1)
-        return obj
-    elif isinstance(obj, dict):
-        return {k: _normalize_braces(v) for k, v in obj.items()}
-    elif isinstance(obj, list):
-        return [_normalize_braces(i) for i in obj]
-    return obj
-
-
 def _substitute_variables(obj: Any, context: Dict[str, Any]) -> Any:
     """
     جایگزینی $variable.path با مقدار واقعی
@@ -151,9 +137,6 @@ def _get_nested_value(obj: Any, path: str) -> Any:
     - best_match.lat
     - features[0].geometry.coordinates[1]
     """
-    # Parse path: pharmacy_location.features[0].geometry.coordinates[1]
-    import re
-    
     # Split by . but keep [index] intact
     parts = re.split(r'(?<!\[)\.(?!\d)', path)
     
