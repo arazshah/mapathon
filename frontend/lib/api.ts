@@ -1,9 +1,6 @@
-import { QueryResponse } from "@/types"
-
-// آدرس بک‌اند از متغیر محیطی
 export const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
 
-export async function sendQuery(question: string): Promise<QueryResponse> {
+export async function sendQuery(question: string): Promise<any> {
   const res = await fetch(`${API_URL}/api/v1/query`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
