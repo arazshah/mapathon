@@ -5,6 +5,7 @@ import MapView from "./components/MapView";
 import QueryBox from "./components/QueryBox";
 import ResultPanel from "./components/ResultPanel";
 import FeedbackModal from "./components/FeedbackModal";
+import { sendQuery } from "@/app/lib/api";
 
 export default function Home() {
   const [results, setResults] = useState<any>(null);
@@ -21,40 +22,34 @@ export default function Home() {
     }
   }, [results, loading]);
 
-  const handleQuery = async (question: string) => {
-    setLoading(true);
-    setResults(null);
-    try {
-      const res = await fetch("${API_URL}/api/v1/query", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question }),
+const handleQuery = async (question: string) => {
+  setLoading(true);
+  setResults(null);
+  try {
+    // ✅ از sendQuery استفاده کن - دیگه نیاز به fetch مستقیم نیست
+    const data = await sendQuery(question);
+    setResults(data);
+    setLastQuery({
+      queryId: data.query_id || `query-${Date.now()}`,
+      question,
+      plan: data.debug?.plan,
+      result: data,
+    });
+    if (data.map?.center && mapRef.current) {
+      mapRef.current.flyTo({ 
+        center: data.map.center, 
+        zoom: data.map.zoom || 11 
       });
-      if (res.ok) {
-        const data = await res.json();
-        setResults(data);
-        setLastQuery({
-          queryId: data.query_id || `query-${Date.now()}`,
-          question,
-          plan: data.debug?.plan,
-          result: data,
-        });
-        if (data.map?.center && mapRef.current) {
-          mapRef.current.flyTo({ center: data.map.center, zoom: data.map.zoom || 11 });
-        }
-        // نمایش نظرسنجی بعد از مکث کوتاه
-        if (!data.error) {
-          setTimeout(() => setShowFeedback(true), 1500);
-        }
-      } else {
-        setResults({ error: "خطا در دریافت پاسخ" });
-      }
-    } catch {
-      setResults({ error: "اتصال به سرور برقرار نشد" });
-    } finally {
-      setLoading(false);
     }
-  };
+    if (!data.error) {
+      setTimeout(() => setShowFeedback(true), 1500);
+    }
+  } catch (err) {
+    setResults({ error: "اتصال به سرور برقرار نشد" });
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleItemClick = (item: any) => {
     if (item.lat && item.lng && mapRef.current) {

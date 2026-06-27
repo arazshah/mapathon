@@ -1,7 +1,7 @@
 "use client"
 
 interface Props {
-  onSubmit: (question: string) => void
+  onQuery: (question: string) => void  // ✅ تغییر onSubmit به onQuery
   loading: boolean
 }
 
@@ -12,14 +12,14 @@ const EXAMPLES = [
   "بیمارستان‌های اصفهان",
 ]
 
-export default function QueryBox({ onSubmit, loading }: Props) {
+export default function QueryBox({ onQuery, loading }: Props) {  // ✅
   return (
     <div className="w-full max-w-2xl mx-auto">
       <form
         onSubmit={(e) => {
           e.preventDefault()
           const val = (e.currentTarget.elements.namedItem("q") as HTMLInputElement).value.trim()
-          if (val) onSubmit(val)
+          if (val) onQuery(val)  // ✅
         }}
         className="flex gap-2"
       >
@@ -45,12 +45,11 @@ export default function QueryBox({ onSubmit, loading }: Props) {
         </button>
       </form>
 
-      {/* نمونه سوال‌ها */}
       <div className="flex flex-wrap gap-2 mt-3 justify-end">
         {EXAMPLES.map((ex) => (
           <button
             key={ex}
-            onClick={() => onSubmit(ex)}
+            onClick={() => onQuery(ex)}  // ✅
             disabled={loading}
             className="text-xs px-3 py-1 rounded-full bg-gray-100 
                        text-gray-600 hover:bg-blue-50 hover:text-blue-600
