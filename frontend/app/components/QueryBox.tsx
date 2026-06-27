@@ -8,9 +8,9 @@ interface QueryBoxProps {
 }
 
 const SUGGESTIONS = [
-  "فاصله تهران تا اصفهان",
+  "فاصله آزادی تا ونک",
   "رستوران‌های تهران",
-  "بیمارستان‌های اصفهان",
+  "بیمارستان‌های تهران",
 ];
 
 export default function QueryBox({ onQuery, loading }: QueryBoxProps) {

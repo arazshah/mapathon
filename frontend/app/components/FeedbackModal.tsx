@@ -27,7 +27,7 @@ export default function FeedbackModal({ queryId, question, plan, result, onClose
     if (!selected) return;
     setLoading(true);
     try {
-      await fetch("${API_URL}/api/v1/feedback/submit", {
+      await fetch(`${API_URL}/api/v1/feedback/submit`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

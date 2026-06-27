@@ -27,7 +27,7 @@ export default function FeedbackPanel({ queryId, question, plan, result, onSubmi
     if (!selectedType) return;
     setLoading(true);
     try {
-      const response = await fetch("http://localhost:8000/api/v1/feedback/submit", {
+      const response = await fetch(`${API_URL}/api/v1/feedback/submit`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
