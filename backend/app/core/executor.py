@@ -175,6 +175,13 @@ def _execute_tool(tool_name: str, params: Dict[str, Any]) -> Dict[str, Any]:
         return calculate_distance(**params)
 
     elif tool_name == "calculate_area":
+        # اگر geometry_geojson به‌صورت string آمد، parse کن
+        import json
+        if "geometry_geojson" in params and isinstance(params["geometry_geojson"], str):
+            try:
+                params["geometry_geojson"] = json.loads(params["geometry_geojson"])
+            except Exception:
+                return {"success": False, "error": "geometry_geojson باید JSON معتبر باشد"}
         return calculate_area(**params)
 
     elif tool_name == "create_buffer":

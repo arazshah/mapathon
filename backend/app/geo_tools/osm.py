@@ -42,7 +42,7 @@ def geocode_from_postgis(address: str, limit: int = 5) -> dict:
                 NULL as railway, NULL as highway,
                 ST_Y(ST_Centroid(ST_Transform(way, 4326))) as lat,
                 ST_X(ST_Centroid(ST_Transform(way, 4326))) as lng,
-                ST_AsGeoJSON(ST_Centroid(ST_Transform(way, 4326))) as geojson,
+                ST_AsGeoJSON(ST_Transform(way, 4326)) as geojson,
                 CASE
                     WHEN name = :exact THEN 100
                     WHEN place IS NOT NULL THEN 90
