@@ -1,0 +1,47 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {"name": "Tehran"},
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [51.05, 35.55],
+          [51.75, 35.55],
+          [51.75, 35.90],
+          [51.05, 35.90],
+          [51.05, 35.55]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {"name": "Isfahan"},
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [51.40, 32.40],
+          [51.95, 32.40],
+          [51.95, 32.85],
+          [51.40, 32.85],
+          [51.40, 32.40]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {"name": "Urmia"},
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [44.85, 37.40],
+          [45.35, 37.40],
+          [45.35, 37.75],
+          [44.85, 37.75],
+          [44.85, 37.40]
+        ]]
+      }
+    }
+  ]
+}

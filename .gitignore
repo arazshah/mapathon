@@ -1,0 +1,73 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.db
+*.sqlite3
+
+# Env
+env/
+venv/
+.env
+
+#venv
+.venv
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Next.js
+.next/
+out/
+
+# OS
+*.DS_Store
+Thumbs.db
+
+# Docker
+*.pid
+*.log
+docker-data/
+
+# Maps / Large data
+backend/data/osm/*.pbf
+
+# Build
+dist/
+build/
+
+# Misc
+.cache/
+.vscode/
+
+# Frontend
+*.tsbuildinfo
+coverage/
+.vercel/
+.eslintcache
+
+# Backend
+logs/
+tmp/
+*.egg-info/
+*.manifest
+*.spec
+
+# Env
+.env.local
+.env.development
+.env.production
+.env.test
+
+# Docker Extra
+docker-compose.override.yml
+docker-compose.dev.yml
+
+# IDE
+.idea/
+*.swp
+*.swo
