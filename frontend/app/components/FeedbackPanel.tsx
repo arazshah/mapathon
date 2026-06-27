@@ -1,6 +1,6 @@
-import { API_URL } from "@/app/lib/api";
 "use client";
 
+import { API_URL } from "@/app/lib/api";
 import { useState } from "react";
 
 interface FeedbackPanelProps {

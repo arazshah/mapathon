@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import { API_URL } from "@/app/lib/api";
+import { useState, useEffect } from "react";
 
 export default function Dashboard() {
   const [authenticated, setAuthenticated] = useState(false);
