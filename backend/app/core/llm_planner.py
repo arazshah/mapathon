@@ -55,6 +55,22 @@ bbox های آماده:
 - تهران: [51.10, 35.55, 51.65, 35.85]
 - اصفهان: [51.50, 32.50, 51.85, 32.80]
 - ارومیه: [44.95, 37.45, 45.25, 37.65]
+
+⚠️ تگ‌های صحیح OSM (فقط از این ستون‌ها استفاده کن):
+- مترو/ایستگاه قطار → {"railway": "station"}   (هرگز {"station": ...} ننویس!)
+- داروخانه → {"amenity": "pharmacy"}
+- بیمارستان → {"amenity": "hospital"}
+- رستوران → {"amenity": "restaurant"}
+- مدرسه → {"amenity": "school"}
+- پارک → {"leisure": "park"}
+- فروشگاه → {"shop": "supermarket"}
+
+⚠️ برای محاسبه مساحت یک مکان نام‌دار (مثل پارک ملت):
+   قدم۱: geocode با geometry_type تشخیص خودکار → خروجی best_match.geojson دارد
+   قدم۲: calculate_area با geometry_geojson = $loc.best_match.geojson
+   ⚠️ مقدار geometry_geojson باید مستقیماً $var.best_match.geojson باشد (نه string، نه دستی)
+
+⚠️ آدرس‌ها را بدون پسوند ", تهران" بفرست. فقط نام خود مکان (مثلاً "میدان ونک" نه "میدان ونک، تهران")
 """
 
 SYSTEM_PROMPT = f"""تو یک برنامه‌ریز GIS هستی.

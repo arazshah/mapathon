@@ -175,14 +175,32 @@ def _execute_tool(tool_name: str, params: Dict[str, Any]) -> Dict[str, Any]:
         return calculate_distance(**params)
 
     elif tool_name == "calculate_area":
-        # اگر geometry_geojson به‌صورت string آمد، parse کن
         import json
-        if "geometry_geojson" in params and isinstance(params["geometry_geojson"], str):
+        # LLM گاهی اسم پارامتر را اشتباه می‌گذارد - نرمال‌سازی
+        geom = (params.get("geometry_geojson")
+                or params.get("geojson")
+                or params.get("geometry")
+                or params.get("polygon_geojson"))
+
+        # اگر کل best_match dict آمده، فیلد geojson را بکش بیرون
+        if isinstance(geom, dict) and "geojson" in geom and "type" not in geom:
+            geom = geom["geojson"]
+
+        # اگر string است، parse کن
+        if isinstance(geom, str):
             try:
-                params["geometry_geojson"] = json.loads(params["geometry_geojson"])
+                geom = json.loads(geom)
             except Exception:
                 return {"success": False, "error": "geometry_geojson باید JSON معتبر باشد"}
-        return calculate_area(**params)
+
+        if not isinstance(geom, dict):
+            return {"success": False, "error": "هندسه‌ای برای محاسبه مساحت یافت نشد"}
+
+        # اگر geometry از نوع Point است، مساحت ندارد
+        if geom.get("type") == "Point":
+            return {"success": False, "error": "این مکان یک نقطه است و مساحت ندارد (باید polygon باشد)"}
+
+        return calculate_area(geometry_geojson=geom)
 
     elif tool_name == "create_buffer":
         return create_buffer(**params)

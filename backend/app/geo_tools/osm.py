@@ -13,7 +13,14 @@ def geocode_from_postgis(address: str, limit: int = 5) -> dict:
     """
     if not isinstance(address, str):
         raise ValueError(f"address باید string باشه، نه {type(address)}")
-    
+
+    # نرمال‌سازی آدرس: حذف پسوندهای رایج که در DB نیست
+    address = address.strip()
+    for suffix in ["، تهران", " تهران", "،تهران", ", Tehran", ", تهران"]:
+        if address.endswith(suffix):
+            address = address[: -len(suffix)].strip()
+    address = address.strip("، ,").strip()
+
     try:
         query_point = text("""
             SELECT 
@@ -111,15 +118,44 @@ def osm_spatial_query(
         }
         table = table_map.get(geometry_type, "planet_osm_point")
 
+        # ستون‌های معتبر در planet_osm (whitelist امنیتی)
+        VALID_COLUMNS = {
+            "amenity", "shop", "tourism", "railway", "highway", "place",
+            "leisure", "building", "landuse", "natural", "waterway",
+            "public_transport", "office", "healthcare", "man_made",
+        }
+        # نگاشت تگ‌های اشتباه رایج به ستون درست
+        TAG_REMAP = {
+            "station": ("railway", "station"),
+            "subway": ("railway", "station"),
+            "metro": ("railway", "station"),
+            "pharmacy": ("amenity", "pharmacy"),
+            "hospital": ("amenity", "hospital"),
+            "restaurant": ("amenity", "restaurant"),
+            "school": ("amenity", "school"),
+            "park": ("leisure", "park"),
+        }
+
         tag_conditions = []
         params = {
             "minx": bbox[0], "miny": bbox[1],
             "maxx": bbox[2], "maxy": bbox[3], "limit": limit,
         }
-        for i, (key, value) in enumerate(osm_tags.items()):
+        i = 0
+        for key, value in osm_tags.items():
+            # اگر کلید نامعتبره ولی در remap هست، اصلاحش کن
+            if key not in VALID_COLUMNS:
+                if key in TAG_REMAP:
+                    key, value = TAG_REMAP[key]
+                elif value in TAG_REMAP:
+                    key, value = TAG_REMAP[value]
+                else:
+                    # کلید ناشناخته → نادیده بگیر تا کوئری نشکنه
+                    continue
             param_name = f"tag_val_{i}"
             tag_conditions.append(f"{key} = :{param_name}")
             params[param_name] = value
+            i += 1
         tag_where = " AND ".join(tag_conditions) if tag_conditions else "1=1"
 
         query = text(f"""

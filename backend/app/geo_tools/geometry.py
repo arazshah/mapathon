@@ -15,6 +15,19 @@ def calculate_distance(lat1: float, lng1: float, lat2: float, lng2: float) -> di
     خروجی: فاصله به متر و کیلومتر
     """
     try:
+        # اطمینان از scalar بودن مختصات (LLM گاهی None یا string می‌فرستد)
+        def _to_float(v, name):
+            if v is None:
+                raise ValueError(f"{name} مقدار ندارد (None) - احتمالاً مکان پیدا نشد")
+            if isinstance(v, (list, tuple)):
+                raise ValueError(f"{name} باید عدد باشد نه لیست")
+            return float(v)
+
+        lat1 = _to_float(lat1, "lat1")
+        lng1 = _to_float(lng1, "lng1")
+        lat2 = _to_float(lat2, "lat2")
+        lng2 = _to_float(lng2, "lng2")
+
         # تبدیل به سیستم متریک ایران (UTM Zone 39N)
         transformer = Transformer.from_crs("EPSG:4326", "EPSG:32639", always_xy=True)
         
