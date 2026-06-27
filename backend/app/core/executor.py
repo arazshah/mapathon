@@ -30,7 +30,9 @@ def execute_plan(plan: Dict[str, Any]) -> Dict[str, Any]:
         params = step_config.get("params", {})
         save_as = step_config.get("save_as", "")
 
-        try:
+                try:
+            # نرمال‌سازی آکولادها به فرمت استاندارد متغیرها
+            params = _normalize_braces(params)
             # جایگزینی متغیرها
             params = _substitute_variables(params, context)
 
@@ -77,6 +79,38 @@ def execute_plan(plan: Dict[str, Any]) -> Dict[str, Any]:
         "context": context,
         "answer": final_answer,
     }
+
+
+def _normalize_braces(obj: Any) -> Any:
+    """تبدیل {var.path} به $var.path در مقادیر params (خطای رایج LLM)"""
+    import re
+    if isinstance(obj, str):
+        # فقط اگر کل رشته یک placeholder آکولادی است
+        m = re.fullmatch(r'\{([a-zA-Z_][a-zA-Z0-9_.\[\]]*)\}', obj.strip())
+        if m:
+            return "$" + m.group(1)
+        return obj
+    elif isinstance(obj, dict):
+        return {k: _normalize_braces(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [_normalize_braces(i) for i in obj]
+    return obj
+
+
+def _normalize_braces(obj: Any) -> Any:
+    """تبدیل {var.path} به $var.path در مقادیر params (خطای رایج LLM)"""
+    import re
+    if isinstance(obj, str):
+        # فقط اگر کل رشته یک placeholder آکولادی است
+        m = re.fullmatch(r'\{([a-zA-Z_][a-zA-Z0-9_.\[\]]*)\}', obj.strip())
+        if m:
+            return "$" + m.group(1)
+        return obj
+    elif isinstance(obj, dict):
+        return {k: _normalize_braces(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [_normalize_braces(i) for i in obj]
+    return obj
 
 
 def _substitute_variables(obj: Any, context: Dict[str, Any]) -> Any:

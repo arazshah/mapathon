@@ -29,8 +29,8 @@ def geocode_from_postgis(address: str, limit: int = 5) -> dict:
                 ST_X(ST_Transform(way, 4326)) as lng,
                 ST_AsGeoJSON(ST_Transform(way, 4326)) as geojson,
                 CASE
-                    WHEN name = :exact THEN 100
-                    WHEN place IS NOT NULL THEN 90
+                    WHEN name = :exact THEN 90
+                    WHEN place IS NOT NULL THEN 80
                     WHEN railway = 'station' THEN 85
                     WHEN railway IS NOT NULL THEN 70
                     WHEN highway IS NOT NULL THEN 60
@@ -51,8 +51,8 @@ def geocode_from_postgis(address: str, limit: int = 5) -> dict:
                 ST_X(ST_Centroid(ST_Transform(way, 4326))) as lng,
                 ST_AsGeoJSON(ST_Transform(way, 4326)) as geojson,
                 CASE
-                    WHEN name = :exact THEN 100
-                    WHEN place IS NOT NULL THEN 90
+                    WHEN name = :exact THEN 90
+                    WHEN place IS NOT NULL THEN 80
                     WHEN name ILIKE :starts THEN 50
                     ELSE 10
                 END as priority
