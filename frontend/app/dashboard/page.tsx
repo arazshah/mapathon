@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { API_URL } from "@/app/lib/api";
 
 export default function Dashboard() {
   const [authenticated, setAuthenticated] = useState(false);
@@ -23,10 +24,10 @@ export default function Dashboard() {
     setLoading(true);
     try {
       const [s, r] = await Promise.all([
-        fetch("${API_URL}/api/v1/feedback/stats", {
+        fetch(`${API_URL}/api/v1/feedback/stats`, {
           headers: { "x-dashboard-password": pass },
         }),
-        fetch("${API_URL}/api/v1/feedback/recent", {
+        fetch(`${API_URL}/api/v1/feedback/recent`, {
           headers: { "x-dashboard-password": pass },
         }),
       ]);
