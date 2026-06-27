@@ -1,15 +1,13 @@
-version: "3.9"
-
 services:
   backend:
     build: ./backend
     restart: always
-    ports:
-      - "8000:8000"
+    expose:
+      - "8000"
     env_file:
       - ./backend/.env
     volumes:
-      - feedback_db:/app/mapathon_feedback.db
+      - feedback-db:/app/data
     networks:
       - mapathon
 
@@ -19,15 +17,15 @@ services:
       args:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://backend:8000}
     restart: always
-    ports:
-      - "3000:3000"
+    expose:
+      - "3000"
     depends_on:
       - backend
     networks:
       - mapathon
 
 volumes:
-  feedback_db:
+  feedback-db:
 
 networks:
   mapathon:
