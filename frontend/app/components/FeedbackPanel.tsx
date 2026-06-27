@@ -1,3 +1,4 @@
+import { API_URL } from "@/app/lib/api";
 "use client";
 
 import { useState } from "react";
