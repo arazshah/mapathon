@@ -4,10 +4,14 @@ services:
     restart: always
     expose:
       - "8000"
-    env_file:
-      - ./backend/.env
-    volumes:
-      - feedback-db:/app/data
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_BASE_URL=${OPENAI_BASE_URL}
+      - OPENAI_MODEL=${OPENAI_MODEL}
+      - DASHBOARD_PASSWORD=${DASHBOARD_PASSWORD}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     networks:
       - mapathon
 
@@ -15,7 +19,7 @@ services:
     build:
       context: ./frontend
       args:
-        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://backend:8000}
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
     restart: always
     expose:
       - "3000"
@@ -23,9 +27,6 @@ services:
       - backend
     networks:
       - mapathon
-
-volumes:
-  feedback-db:
 
 networks:
   mapathon:
