@@ -14,7 +14,15 @@ from app.models.feedback import QueryFeedback
 router = APIRouter(prefix="/api/v1/feedback", tags=["feedback"])
 
 DATABASE_URL = os.getenv("FEEDBACK_DB_URL", "sqlite:///./data/mapathon_feedback.db")
-engine = create_engine(DATABASE_URL)
+
+# ساخت پوشه دیتابیس اگر وجود ندارد (برای SQLite)
+if DATABASE_URL.startswith("sqlite:///./"):
+    db_path = DATABASE_URL.replace("sqlite:///./", "")
+    db_dir = os.path.dirname(db_path)
+    if db_dir:
+        os.makedirs(db_dir, exist_ok=True)
+
+engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 
 # رمز داشبورد از .env
 DASHBOARD_PASSWORD = os.getenv("DASHBOARD_PASSWORD", "admin")
