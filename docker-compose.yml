@@ -11,8 +11,6 @@ services:
       - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o-mini}
       - DASHBOARD_PASSWORD=${DASHBOARD_PASSWORD:-admin}
       - CORS_ORIGINS=${CORS_ORIGINS:-*}
-    healthcheck:
-      disable: true
 
   frontend:
     build:
@@ -20,9 +18,9 @@ services:
       args:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
     restart: always
+    depends_on:
+      - backend
     ports:
       - "3000:3000"
     environment:
       - NODE_ENV=production
-    healthcheck:
-      disable: true
