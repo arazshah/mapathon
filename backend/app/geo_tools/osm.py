@@ -1,10 +1,4 @@
 from sqlalchemy import text
-from shapely import wkb
-from pyproj import Transformer
-
-# تبدیل EPSG:3857 (osm2pgsql) به EPSG:4326
-transformer_3857_to_4326 = Transformer.from_crs("EPSG:3857", "EPSG:4326", always_xy=True)
-
 
 # نگاشت نوع موجودیت به تگ‌های OSM
 ENTITY_TAG_CONDITIONS = {
@@ -21,19 +15,10 @@ ENTITY_TAG_CONDITIONS = {
 }
 
 
-def _wkb_to_latlon(wkb_bytes):
-    """تبدیل باینری geometry به lat/lon"""
-    geom = wkb.loads(wkb_bytes)
-    if geom.geom_type == "Point":
-        return geom.y, geom.x
-    else:
-        centroid = geom.centroid
-        return centroid.y, centroid.x
-
-
 def geocode_place(db, name: str) -> dict | None:
     """
-    جستجوی مکان در داده‌های OSM محلی (PostGIS)
+    جستجوی مکان در داده‌های OSM (PostGIS)
+    مختصات مستقیماً از PostGIS با ST_X/ST_Y گرفته می‌شود.
     """
     queries = [
         ("planet_osm_polygon", "ST_Area(way) DESC", "polygon"),
@@ -43,20 +28,24 @@ def geocode_place(db, name: str) -> dict | None:
 
     for table, order_by, source in queries:
         sql = text(f"""
-            SELECT osm_id, name, tags, ST_AsBinary(ST_Transform(way, 4326)) as geom
+            SELECT 
+                osm_id, 
+                name, 
+                tags,
+                ST_Y(ST_Centroid(ST_Transform(way, 4326))) as lat,
+                ST_X(ST_Centroid(ST_Transform(way, 4326))) as lon
             FROM {table}
             WHERE name ILIKE :name
             ORDER BY {order_by}
             LIMIT 1
         """)
         result = db.execute(sql, {"name": f"%{name}%"}).mappings().first()
-        if result:
-            lat, lon = _wkb_to_latlon(result["geom"])
+        if result and result["lat"] is not None and result["lon"] is not None:
             return {
                 "osm_id": result["osm_id"],
                 "name": result["name"],
-                "lat": lat,
-                "lon": lon,
+                "lat": float(result["lat"]),
+                "lon": float(result["lon"]),
                 "source": source,
                 "tags": dict(result["tags"]) if result["tags"] else {},
             }
@@ -75,7 +64,8 @@ def find_pois_near(db, entity_type: str, lat: float, lon: float, radius_meters: 
             osm_id, 
             name, 
             tags,
-            ST_AsBinary(ST_Transform(way, 4326)) as geom,
+            ST_Y(ST_Centroid(ST_Transform(way, 4326))) as lat,
+            ST_X(ST_Centroid(ST_Transform(way, 4326))) as lon,
             ST_Distance(
                 ST_Transform(way, 4326)::geography,
                 ST_SetSRID(ST_MakePoint(:lon, :lat), 4326)::geography
@@ -105,12 +95,13 @@ def find_pois_near(db, entity_type: str, lat: float, lon: float, radius_meters: 
 
     results = []
     for row in rows:
-        p_lat, p_lon = _wkb_to_latlon(row["geom"])
+        if row["lat"] is None or row["lon"] is None:
+            continue
         results.append({
             "osm_id": row["osm_id"],
             "name": row["name"],
-            "lat": p_lat,
-            "lon": p_lon,
+            "lat": float(row["lat"]),
+            "lon": float(row["lon"]),
             "distance_meters": round(row["distance_meters"]),
             "tags": dict(row["tags"]) if row["tags"] else {},
         })
@@ -151,26 +142,30 @@ def area_of_place(db, name: str, entity_type: str | None = None) -> dict | None:
     محاسبه مساحت یک مکان
     """
     sql = text("""
-        SELECT osm_id, name, tags, ST_AsBinary(ST_Transform(way, 4326)) as geom,
-               ST_Area(ST_Transform(way, 4326)::geography) as area_m2
+        SELECT 
+            osm_id, 
+            name, 
+            tags,
+            ST_Y(ST_Centroid(ST_Transform(way, 4326))) as lat,
+            ST_X(ST_Centroid(ST_Transform(way, 4326))) as lon,
+            ST_Area(ST_Transform(way, 4326)::geography) as area_m2
         FROM planet_osm_polygon
         WHERE name ILIKE :name
+        ORDER BY ST_Area(way) DESC
         LIMIT 1
     """)
     result = db.execute(sql, {"name": f"%{name}%"}).mappings().first()
 
-    if not result:
+    if not result or result["lat"] is None:
         return None
-
-    lat, lon = _wkb_to_latlon(result["geom"])
 
     return {
         "place": {
             "osm_id": result["osm_id"],
             "name": result["name"],
-            "lat": lat,
-            "lon": lon,
+            "lat": float(result["lat"]),
+            "lon": float(result["lon"]),
             "tags": dict(result["tags"]) if result["tags"] else {},
         },
-        "area_m2": result["area_m2"],
+        "area_m2": float(result["area_m2"]),
     }
