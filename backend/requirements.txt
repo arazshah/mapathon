@@ -5,6 +5,7 @@ pydantic==2.7.4
 pydantic-settings==2.3.4
 openai==1.35.3
 python-dotenv==1.0.1
+numpy==1.26.4
 shapely==2.0.4
 pyproj==3.6.1
 psycopg2-binary==2.9.9

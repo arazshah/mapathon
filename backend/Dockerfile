@@ -6,7 +6,9 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y \
     libpq-dev \
     gcc \
+    g++ \
     libgeos-dev \
+    libgeos-c1v5 \
     libproj-dev \
     proj-bin \
     && rm -rf /var/lib/apt/lists/*
@@ -15,7 +17,11 @@ RUN apt-get update && apt-get install -y \
 RUN mkdir -p /app/data
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+
+# حذف کش pip و نصب اجباری numpy 1.26.4
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir --force-reinstall numpy==1.26.4 && \
+    pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
