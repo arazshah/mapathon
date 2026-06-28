@@ -1,5 +1,4 @@
 import json
-import os
 from openai import OpenAI
 
 from app.config import settings
@@ -10,28 +9,28 @@ SYSTEM_PROMPT = """
 تو یک برنامه‌ریز GIS هوشمند برای شهر تهران هستی.
 سوال کاربر را تحلیل کن و فقط یک JSON معتبر برگردان.
 
-قوانین مهم:
-1. location_name فقط باید نام مکان خالص باشد (بدون نوع موجودیت).
-2. entity_type نوع موجودیت مورد جستجو را مشخص می‌کند (metro, restaurant, pharmacy, park, hospital, ...).
+قوانین:
+1. location_name فقط نام مکان خالص باشد (بدون نوع موجودیت).
+2. entity_type نوع موجودیت جستجو: metro, restaurant, pharmacy, park, hospital, cafe, bank, school, fuel
 3. operation یکی از: find_nearby | distance | area | count | info
-4. اگر سوال فاصله بود: location_name و target_location را پر کن.
-5. location_name باید دقیقاً نامی باشد که بتوان در نقشه جستجو کرد.
+4. اگر کاربر فقط نام یک مکان را بدون درخواست خاص نوشت -> operation = "info"
+5. اگر کاربر نوع موجودیت نزدیک یک مکان خواست -> operation = "find_nearby"
 
-نمونه‌های خروجی:
+نمونه‌ها:
+- "میدان انقلاب" -> {"operation": "info", "location_name": "میدان انقلاب"}
 - "مترو نزدیک میدان انقلاب" -> {"operation": "find_nearby", "entity_type": "metro", "location_name": "میدان انقلاب", "radius_meters": 1500}
-- "رستوران‌های تهران" -> {"operation": "find_nearby", "entity_type": "restaurant", "location_name": "تهران", "radius_meters": 10000}
-- "فاصله داروخانه هلال احمر تا میدان آزادی" -> {"operation": "distance", "entity_type": "pharmacy", "location_name": "داروخانه هلال احمر", "target_location": "میدان آزادی"}
-- "مساحت پارک ملت" -> {"operation": "area", "entity_type": "park", "location_name": "پارک ملت"}
+- "مترو نواب" -> {"operation": "find_nearby", "entity_type": "metro", "location_name": "نواب", "radius_meters": 1500}
+- "داروخانه‌های تهران" -> {"operation": "find_nearby", "entity_type": "pharmacy", "location_name": "تهران", "radius_meters": 10000}
 - "داروخانه‌های نزدیک ونک" -> {"operation": "find_nearby", "entity_type": "pharmacy", "location_name": "میدان ونک", "radius_meters": 1000}
+- "فاصله آزادی تا ونک" -> {"operation": "distance", "location_name": "میدان آزادی", "target_location": "میدان ونک"}
+- "مساحت پارک ملت" -> {"operation": "area", "entity_type": "park", "location_name": "پارک ملت"}
 
-خروجی فقط JSON باشد. هیچ توضیح اضافی نده.
+فقط JSON برگردان، بدون توضیح اضافی.
 """
 
 
 def create_plan(question: str) -> dict:
-    """
-    تحلیل سوال زبان طبیعی و تبدیل آن به طرح JSON
-    """
+    """تحلیل سوال و تبدیل به طرح JSON"""
     if not settings.openai_api_key:
         raise ValueError("کلید API OpenAI تنظیم نشده است.")
 

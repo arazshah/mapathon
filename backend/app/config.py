@@ -8,13 +8,17 @@ class Settings:
     def __init__(self):
         self.openai_api_key = os.getenv("OPENAI_API_KEY", "")
         self.openai_model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
-        
-        # مسیر دیتابیس SQLite برای نظرات
-        self.database_path = os.getenv("DATABASE_PATH", "data/mapathon_feedback.db")
-        
+
+        # دیتابیس SQLite برای نظرات کاربران
+        self.feedback_db_path = os.getenv("DATABASE_PATH", "data/mapathon_feedback.db")
+
+        # دیتابیس PostgreSQL + PostGIS برای داده‌های OSM
+        # مثال: postgresql://user:pass@host:5432/osm
+        self.postgis_url = os.getenv("POSTGIS_URL", "")
+
         # رمز عبور داشبورد
         self.dashboard_password = os.getenv("DASHBOARD_PASSWORD", "admin")
-        
+
         # تنظیمات CORS
         origins = os.getenv("CORS_ORIGINS", "")
         if origins:

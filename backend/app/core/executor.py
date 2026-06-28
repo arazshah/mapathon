@@ -4,9 +4,7 @@ from app.geo_tools.geometry import format_distance_persian, format_area_persian
 
 
 def execute_plan(question: str, db) -> dict:
-    """
-    اجرای طرح استخراج‌شده از سوال کاربر
-    """
+    """اجرای طرح استخراج‌شده از سوال کاربر"""
     plan = create_plan(question)
     operation = plan.get("operation")
 
@@ -18,14 +16,20 @@ def execute_plan(question: str, db) -> dict:
         return execute_area(plan, db)
     elif operation == "count":
         return execute_count(plan, db)
+    elif operation == "info":
+        return execute_info(plan, db)
     else:
-        return {
-            "success": False,
-            "error": f"عملیات '{operation}' پشتیبانی نمی‌شود.",
-            "plan": plan,
-            "message": f"عملیات '{operation}' پشتیبانی نمی‌شود.",
-            "type": "error",
-        }
+        return _error(f"عملیات '{operation}' پشتیبانی نمی‌شود.", plan)
+
+
+def _error(msg: str, plan: dict) -> dict:
+    return {
+        "success": False,
+        "error": msg,
+        "message": msg,
+        "type": "error",
+        "plan": plan,
+    }
 
 
 def execute_find_nearby(plan: dict, db) -> dict:
@@ -34,23 +38,11 @@ def execute_find_nearby(plan: dict, db) -> dict:
     radius = plan.get("radius_meters", 1500)
 
     if not location_name:
-        return {
-            "success": False,
-            "error": "نام مکان مشخص نشده است.",
-            "plan": plan,
-            "message": "نام مکان مشخص نشده است.",
-            "type": "error",
-        }
+        return _error("نام مکان مشخص نشده است.", plan)
 
     center = geocode_place(db, location_name)
     if not center:
-        return {
-            "success": False,
-            "error": f"مکان '{location_name}' پیدا نشد.",
-            "plan": plan,
-            "message": f"مکان '{location_name}' پیدا نشد.",
-            "type": "error",
-        }
+        return _error(f"مکان '{location_name}' پیدا نشد.", plan)
 
     places = find_pois_near(db, entity_type, center["lat"], center["lon"], radius)
 
@@ -71,23 +63,11 @@ def execute_distance(plan: dict, db) -> dict:
     to_name = plan.get("target_location")
 
     if not from_name or not to_name:
-        return {
-            "success": False,
-            "error": "دو مکان برای محاسبه فاصله نیاز است.",
-            "plan": plan,
-            "message": "دو مکان برای محاسبه فاصله نیاز است.",
-            "type": "error",
-        }
+        return _error("دو مکان برای محاسبه فاصله نیاز است.", plan)
 
     result = distance_between_places(db, from_name, to_name)
     if not result:
-        return {
-            "success": False,
-            "error": f"یکی از مکان‌ها پیدا نشد: '{from_name}' یا '{to_name}'",
-            "plan": plan,
-            "message": f"یکی از مکان‌ها پیدا نشد: '{from_name}' یا '{to_name}'",
-            "type": "error",
-        }
+        return _error(f"یکی از مکان‌ها پیدا نشد: '{from_name}' یا '{to_name}'", plan)
 
     return {
         "success": True,
@@ -106,13 +86,7 @@ def execute_area(plan: dict, db) -> dict:
 
     result = area_of_place(db, location_name, entity_type)
     if not result:
-        return {
-            "success": False,
-            "error": f"مکان '{location_name}' برای محاسبه مساحت پیدا نشد.",
-            "plan": plan,
-            "message": f"مکان '{location_name}' برای محاسبه مساحت پیدا نشد.",
-            "type": "error",
-        }
+        return _error(f"مکان '{location_name}' برای محاسبه مساحت پیدا نشد.", plan)
 
     return {
         "success": True,
@@ -131,13 +105,7 @@ def execute_count(plan: dict, db) -> dict:
 
     center = geocode_place(db, location_name)
     if not center:
-        return {
-            "success": False,
-            "error": f"مکان '{location_name}' پیدا نشد.",
-            "plan": plan,
-            "message": f"مکان '{location_name}' پیدا نشد.",
-            "type": "error",
-        }
+        return _error(f"مکان '{location_name}' پیدا نشد.", plan)
 
     places = find_pois_near(db, entity_type, center["lat"], center["lon"], radius)
 
@@ -146,5 +114,27 @@ def execute_count(plan: dict, db) -> dict:
         "type": "count",
         "count": len(places),
         "message": f"{len(places)} {entity_type} در {location_name} یافت شد.",
+        "plan": plan,
+    }
+
+
+def execute_info(plan: dict, db) -> dict:
+    """نمایش اطلاعات یک مکان مشخص (مثل میدان انقلاب)"""
+    location_name = plan.get("location_name")
+
+    if not location_name:
+        return _error("نام مکان مشخص نشده است.", plan)
+
+    place = geocode_place(db, location_name)
+    if not place:
+        return _error(f"مکان '{location_name}' پیدا نشد.", plan)
+
+    return {
+        "success": True,
+        "type": "info",
+        "center": place,
+        "places": [place],
+        "count": 1,
+        "message": f"اطلاعات مکان '{place['name']}' یافت شد.",
         "plan": plan,
     }
