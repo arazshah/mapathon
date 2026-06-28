@@ -1,0 +1,33 @@
+services:
+  backend:
+    build: ./backend
+    restart: always
+    expose:
+      - "8000"
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_BASE_URL=${OPENAI_BASE_URL}
+      - OPENAI_MODEL=${OPENAI_MODEL}
+      - DASHBOARD_PASSWORD=${DASHBOARD_PASSWORD}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - mapathon
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+    restart: always
+    expose:
+      - "3000"
+    depends_on:
+      - backend
+    networks:
+      - mapathon
+
+networks:
+  mapathon:
+    driver: bridge
