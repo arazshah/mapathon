@@ -1,9 +1,13 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.v1.query import router as query_router
-from app.api.routes.feedback import router as feedback_router
+from app.api.routes.feedback import router as feedback_router, engine
+from app.models.feedback import Base
 
 app = FastAPI(title="Mapathon API")
+
+# ساخت خودکار جداول دیتابیس (از جمله query_feedback)
+Base.metadata.create_all(bind=engine)
 
 # ✅ CORS برای Next.js
 app.add_middleware(

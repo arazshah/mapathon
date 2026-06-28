@@ -2,6 +2,7 @@
 API برای دریافت Feedback کاربران + داشبورد محافظت‌شده
 """
 import os
+from typing import Optional
 import json
 from datetime import datetime
 from fastapi import APIRouter, HTTPException, Header, Depends
@@ -12,7 +13,7 @@ from app.models.feedback import QueryFeedback
 
 router = APIRouter(prefix="/api/v1/feedback", tags=["feedback"])
 
-DATABASE_URL = "sqlite:///./mapathon_feedback.db"
+DATABASE_URL = os.getenv("FEEDBACK_DB_URL", "sqlite:///./data/mapathon_feedback.db")
 engine = create_engine(DATABASE_URL)
 
 # رمز داشبورد از .env
@@ -32,7 +33,7 @@ class FeedbackRequest(BaseModel):
     generated_plan: dict
     execution_result: dict
     feedback_type: str
-    comment: str = None
+    comment: Optional[str] = None
 
 
 class LoginRequest(BaseModel):
