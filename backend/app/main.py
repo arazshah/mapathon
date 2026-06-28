@@ -28,3 +28,7 @@ app.include_router(feedback_router)
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+@app.get("/health")
+async def health_check():
+    return {"status": "healthy"}
