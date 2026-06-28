@@ -1,20 +1,30 @@
-from sqlalchemy import create_engine, text
-from sqlalchemy.orm import sessionmaker
+import os
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker, declarative_base
+
 from app.config import settings
 
-# ساخت engine
+# ساخت URL دیتابیس SQLite
+DATABASE_URL = f"sqlite:///{settings.database_path}"
+
+# اطمینان از وجود پوشه دیتا
+os.makedirs(os.path.dirname(settings.database_path), exist_ok=True)
+
 engine = create_engine(
-    settings.database_url,
-    pool_pre_ping=True,   # چک کردن اتصال قبل از استفاده
-    pool_size=5,
-    max_overflow=10,
+    DATABASE_URL,
+    connect_args={"check_same_thread": False},
+    echo=False,
 )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
+Base = declarative_base()
+
 
 def get_db():
-    """Dependency برای استفاده در endpoint ها"""
+    """
+    وابستگی FastAPI برای دریافت Session دیتابیس
+    """
     db = SessionLocal()
     try:
         yield db
@@ -22,21 +32,8 @@ def get_db():
         db.close()
 
 
-def check_connection() -> dict:
-    """تست اتصال به دیتابیس و PostGIS"""
-    try:
-        with engine.connect() as conn:
-            # تست اتصال
-            conn.execute(text("SELECT 1"))
-            # تست PostGIS
-            result = conn.execute(text("SELECT PostGIS_Version()"))
-            postgis_version = result.scalar()
-            return {
-                "connected": True,
-                "postgis_version": postgis_version,
-            }
-    except Exception as e:
-        return {
-            "connected": False,
-            "error": str(e),
-        }
+def init_db():
+    """
+    ساخت جداول در صورت عدم وجود
+    """
+    Base.metadata.create_all(bind=engine)

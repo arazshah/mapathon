@@ -1,30 +1,42 @@
-"""
-Endpoint اصلی: سوال زبان طبیعی → پاسخ + نقشه + گزارش
-"""
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
 from pydantic import BaseModel
-from app.core.llm_planner import create_plan
-from app.core.executor import execute_plan
-from app.core.response_builder import build_response
 
-router = APIRouter(prefix="/api/v1", tags=["query"])
+from app.core.database import get_db
+from app.core.executor import execute_plan
+
+router = APIRouter(prefix="/query", tags=["query"])
 
 
 class QueryRequest(BaseModel):
     question: str
 
 
-@router.post("/query")
-def query(req: QueryRequest):
-    """سوال زبان طبیعی → plan → اجرا → contract استاندارد"""
-    question = req.question.strip()
-    if not question:
-        return {
-            "success": False, "question": question,
-            "answer": None, "map": None, "report": None,
-            "error": "سوال خالی است",
-        }
+class QueryResponse(BaseModel):
+    success: bool
+    type: str | None = None
+    message: str
+    center: dict | None = None
+    places: list | None = None
+    count: int | None = None
+    distance_meters: float | None = None
+    area_m2: float | None = None
+    plan: dict | None = None
+    error: str | None = None
 
-    plan = create_plan(question)
-    exec_result = execute_plan(plan)
-    return build_response(question, plan, exec_result)
+
+@router.post("/", response_model=QueryResponse)
+def query(request: QueryRequest, db: Session = Depends(get_db)):
+    """
+    دریافت سوال زبان طبیعی و پاسخ GIS
+    """
+    try:
+        result = execute_plan(request.question, db)
+        return QueryResponse(**result)
+    except Exception as e:
+        return QueryResponse(
+            success=False,
+            type="error",
+            message="خطا در پردازش سوال",
+            error=str(e),
+        )

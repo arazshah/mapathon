@@ -35,63 +35,31 @@ def geocode_place(db, name: str) -> dict | None:
     """
     جستجوی مکان در داده‌های OSM محلی (PostGIS)
     """
-    # 1. ابتدا در polygon (مناطق، پارک‌ها، محله‌ها)
-    sql_polygon = text("""
-        SELECT osm_id, name, tags, ST_AsBinary(ST_Transform(way, 4326)) as geom, 'polygon' as source
-        FROM planet_osm_polygon
-        WHERE name ILIKE :name
-        ORDER BY ST_Area(way) DESC
-        LIMIT 1
-    """)
-    result = db.execute(sql_polygon, {"name": f"%{name}%"}).mappings().first()
-    if result:
-        lat, lon = _wkb_to_latlon(result["geom"])
-        return {
-            "osm_id": result["osm_id"],
-            "name": result["name"],
-            "lat": lat,
-            "lon": lon,
-            "source": "polygon",
-            "tags": dict(result["tags"]) if result["tags"] else {},
-        }
+    queries = [
+        ("planet_osm_polygon", "ST_Area(way) DESC", "polygon"),
+        ("planet_osm_line", "osm_id", "line"),
+        ("planet_osm_point", "osm_id", "point"),
+    ]
 
-    # 2. سپس در line (خیابان‌ها، بزرگراه‌ها)
-    sql_line = text("""
-        SELECT osm_id, name, tags, ST_AsBinary(ST_Transform(way, 4326)) as geom, 'line' as source
-        FROM planet_osm_line
-        WHERE name ILIKE :name
-        LIMIT 1
-    """)
-    result = db.execute(sql_line, {"name": f"%{name}%"}).mappings().first()
-    if result:
-        lat, lon = _wkb_to_latlon(result["geom"])
-        return {
-            "osm_id": result["osm_id"],
-            "name": result["name"],
-            "lat": lat,
-            "lon": lon,
-            "source": "line",
-            "tags": dict(result["tags"]) if result["tags"] else {},
-        }
-
-    # 3. در نهایت در point (نقاط)
-    sql_point = text("""
-        SELECT osm_id, name, tags, ST_AsBinary(ST_Transform(way, 4326)) as geom, 'point' as source
-        FROM planet_osm_point
-        WHERE name ILIKE :name
-        LIMIT 1
-    """)
-    result = db.execute(sql_point, {"name": f"%{name}%"}).mappings().first()
-    if result:
-        lat, lon = _wkb_to_latlon(result["geom"])
-        return {
-            "osm_id": result["osm_id"],
-            "name": result["name"],
-            "lat": lat,
-            "lon": lon,
-            "source": "point",
-            "tags": dict(result["tags"]) if result["tags"] else {},
-        }
+    for table, order_by, source in queries:
+        sql = text(f"""
+            SELECT osm_id, name, tags, ST_AsBinary(ST_Transform(way, 4326)) as geom
+            FROM {table}
+            WHERE name ILIKE :name
+            ORDER BY {order_by}
+            LIMIT 1
+        """)
+        result = db.execute(sql, {"name": f"%{name}%"}).mappings().first()
+        if result:
+            lat, lon = _wkb_to_latlon(result["geom"])
+            return {
+                "osm_id": result["osm_id"],
+                "name": result["name"],
+                "lat": lat,
+                "lon": lon,
+                "source": source,
+                "tags": dict(result["tags"]) if result["tags"] else {},
+            }
 
     return None
 

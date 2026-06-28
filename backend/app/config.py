@@ -1,37 +1,25 @@
-"""
-تنظیمات تطبیق‌پذیر برای Mapathon
-"""
 import os
-from pydantic_settings import BaseSettings
+from functools import lru_cache
 
-class Settings(BaseSettings):
-    # OpenAI / LLM
-    openai_api_key: str = os.getenv("OPENAI_API_KEY", "")
-    openai_base_url: str = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
-    openai_model: str = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
-    
-    # Database - PostgreSQL برای داده‌های مکانی
-    database_url: str = os.getenv(
-        "DATABASE_URL",
-        "postgresql://postgres:postgres@localhost:5432/mapathon"
-    )
-    
-    # Database - SQLite برای feedback
-    feedback_db_url: str = os.getenv(
-        "FEEDBACK_DB_URL",
-        "sqlite:///./data/mapathon_feedback.db"
-    )
-    
-    # Server
-    api_host: str = os.getenv("API_HOST", "0.0.0.0")
-    api_port: int = int(os.getenv("API_PORT", "8000"))
-    
-    # Dashboard
-    dashboard_password: str = os.getenv("DASHBOARD_PASSWORD", "admin")
+class Settings:
+    """
+    تنظیمات مرکزی بک‌اند
+    """
+    def __init__(self):
+        self.openai_api_key = os.getenv("OPENAI_API_KEY", "")
+        self.openai_model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+        
+        # مسیر دیتابیس SQLite برای نظرات
+        self.database_path = os.getenv("DATABASE_PATH", "data/mapathon_feedback.db")
+        
+        # رمز عبور داشبورد
+        self.dashboard_password = os.getenv("DASHBOARD_PASSWORD", "admin")
+        
+        # تنظیمات CORS
+        self.cors_origins = os.getenv("CORS_ORIGINS", "*").split(",")
 
-    class Config:
-        env_file = ".env"
-        case_sensitive = False
-        extra = "ignore"
+@lru_cache()
+def get_settings():
+    return Settings()
 
-settings = Settings()
+settings = get_settings()

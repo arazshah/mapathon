@@ -2,7 +2,7 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-# Install system dependencies for pyproj, shapely, psycopg2
+# نصب وابستگی‌های سیستمی
 RUN apt-get update && apt-get install -y \
     libpq-dev \
     gcc \
@@ -10,6 +10,9 @@ RUN apt-get update && apt-get install -y \
     libproj-dev \
     proj-bin \
     && rm -rf /var/lib/apt/lists/*
+
+# ساخت پوشه دیتا برای پایداری SQLite
+RUN mkdir -p /app/data
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt

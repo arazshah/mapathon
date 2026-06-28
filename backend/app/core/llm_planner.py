@@ -2,7 +2,9 @@ import json
 import os
 from openai import OpenAI
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+from app.config import settings
+
+client = OpenAI(api_key=settings.openai_api_key)
 
 SYSTEM_PROMPT = """
 تو یک برنامه‌ریز GIS هوشمند برای شهر تهران هستی.
@@ -25,12 +27,16 @@ SYSTEM_PROMPT = """
 خروجی فقط JSON باشد. هیچ توضیح اضافی نده.
 """
 
+
 def create_plan(question: str) -> dict:
     """
     تحلیل سوال زبان طبیعی و تبدیل آن به طرح JSON
     """
+    if not settings.openai_api_key:
+        raise ValueError("کلید API OpenAI تنظیم نشده است.")
+
     response = client.chat.completions.create(
-        model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
+        model=settings.openai_model,
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": question},

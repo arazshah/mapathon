@@ -1,34 +1,18 @@
-"""
-مدل‌های Feedback برای بهبود سیستم
-"""
-from sqlalchemy import Column, String, Integer, DateTime, Text
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy import Column, Integer, String, Text, DateTime
 from datetime import datetime
 
-Base = declarative_base()
+from app.core.database import Base
 
 
-class QueryFeedback(Base):
+class Feedback(Base):
     """
-    ذخیره feedback کاربران برای بهبود LLM
+    مدل نظرات کاربران
     """
-    __tablename__ = "query_feedback"
+    __tablename__ = "feedbacks"
 
-    id = Column(Integer, primary_key=True)
-    query_id = Column(String(50), unique=True, nullable=False)  # UUID
-    
-    # سوال و پلن اصلی
-    user_question = Column(Text, nullable=False)
-    generated_plan = Column(Text, nullable=False)  # JSON as string
-    execution_result = Column(Text, nullable=False)  # JSON as string
-    
-    # Feedback
-    feedback_type = Column(String(50), nullable=False)  # "correct", "wrong_result", etc
-    user_comment = Column(Text, nullable=True)
-    
-    # Metadata
-    created_at = Column(DateTime, default=datetime.utcnow)
-    is_processed = Column(Integer, default=0)
-    
-    def __repr__(self):
-        return f"<QueryFeedback({self.query_id}, {self.feedback_type})>"
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    query_id = Column(String, nullable=True, index=True)
+    query_text = Column(Text, nullable=True)
+    feedback_type = Column(String, nullable=False, index=True)
+    comment = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)

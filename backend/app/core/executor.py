@@ -23,6 +23,8 @@ def execute_plan(question: str, db) -> dict:
             "success": False,
             "error": f"عملیات '{operation}' پشتیبانی نمی‌شود.",
             "plan": plan,
+            "message": f"عملیات '{operation}' پشتیبانی نمی‌شود.",
+            "type": "error",
         }
 
 
@@ -32,7 +34,13 @@ def execute_find_nearby(plan: dict, db) -> dict:
     radius = plan.get("radius_meters", 1500)
 
     if not location_name:
-        return {"success": False, "error": "نام مکان مشخص نشده است.", "plan": plan}
+        return {
+            "success": False,
+            "error": "نام مکان مشخص نشده است.",
+            "plan": plan,
+            "message": "نام مکان مشخص نشده است.",
+            "type": "error",
+        }
 
     center = geocode_place(db, location_name)
     if not center:
@@ -40,6 +48,8 @@ def execute_find_nearby(plan: dict, db) -> dict:
             "success": False,
             "error": f"مکان '{location_name}' پیدا نشد.",
             "plan": plan,
+            "message": f"مکان '{location_name}' پیدا نشد.",
+            "type": "error",
         }
 
     places = find_pois_near(db, entity_type, center["lat"], center["lon"], radius)
@@ -61,7 +71,13 @@ def execute_distance(plan: dict, db) -> dict:
     to_name = plan.get("target_location")
 
     if not from_name or not to_name:
-        return {"success": False, "error": "دو مکان برای محاسبه فاصله نیاز است.", "plan": plan}
+        return {
+            "success": False,
+            "error": "دو مکان برای محاسبه فاصله نیاز است.",
+            "plan": plan,
+            "message": "دو مکان برای محاسبه فاصله نیاز است.",
+            "type": "error",
+        }
 
     result = distance_between_places(db, from_name, to_name)
     if not result:
@@ -69,6 +85,8 @@ def execute_distance(plan: dict, db) -> dict:
             "success": False,
             "error": f"یکی از مکان‌ها پیدا نشد: '{from_name}' یا '{to_name}'",
             "plan": plan,
+            "message": f"یکی از مکان‌ها پیدا نشد: '{from_name}' یا '{to_name}'",
+            "type": "error",
         }
 
     return {
@@ -92,6 +110,8 @@ def execute_area(plan: dict, db) -> dict:
             "success": False,
             "error": f"مکان '{location_name}' برای محاسبه مساحت پیدا نشد.",
             "plan": plan,
+            "message": f"مکان '{location_name}' برای محاسبه مساحت پیدا نشد.",
+            "type": "error",
         }
 
     return {
@@ -115,6 +135,8 @@ def execute_count(plan: dict, db) -> dict:
             "success": False,
             "error": f"مکان '{location_name}' پیدا نشد.",
             "plan": plan,
+            "message": f"مکان '{location_name}' پیدا نشد.",
+            "type": "error",
         }
 
     places = find_pois_near(db, entity_type, center["lat"], center["lon"], radius)
