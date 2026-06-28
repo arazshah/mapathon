@@ -1,106 +1,133 @@
-"use client";
+'use client';
 
-import { API_URL } from "@/app/lib/api";
-import { useState } from "react";
+import { useState } from 'react';
+
+type FeedbackType = 'correct' | 'wrong_result' | 'misunderstood' | 'suggestion';
+
+const labels: Record<FeedbackType, string> = {
+  correct: '✅ درست بود',
+  wrong_result: '❌ نتیجه نادرست',
+  misunderstood: '🤔 سؤال را بد فهمید',
+  suggestion: '💡 پیشنهاد دارم',
+};
+
+const colors: Record<FeedbackType, string> = {
+  correct: 'bg-green-50 text-green-700 border-green-200',
+  wrong_result: 'bg-red-50 text-red-700 border-red-200',
+  misunderstood: 'bg-yellow-50 text-yellow-700 border-yellow-200',
+  suggestion: 'bg-blue-50 text-blue-700 border-blue-200',
+};
 
 interface FeedbackPanelProps {
-  queryId: string;
-  question: string;
-  plan: any;
+  isOpen: boolean;
+  onClose: () => void;
+  query: string;
   result: any;
-  onSubmit?: () => void;
 }
 
-const FEEDBACK_TYPES = [
-  { key: "correct", label: "صحیح بود", icon: "✅", active: "bg-green-500 border-green-500 text-white", idle: "border-green-200 text-green-600 hover:bg-green-50" },
-  { key: "wrong_result", label: "نتیجه اشتباه", icon: "⚠️", active: "bg-amber-500 border-amber-500 text-white", idle: "border-amber-200 text-amber-600 hover:bg-amber-50" },
-  { key: "misunderstood", label: "سوال را نفهمید", icon: "❌", active: "bg-red-500 border-red-500 text-white", idle: "border-red-200 text-red-600 hover:bg-red-50" },
-  { key: "suggestion", label: "پیشنهاد بهبود", icon: "💡", active: "bg-blue-500 border-blue-500 text-white", idle: "border-blue-200 text-blue-600 hover:bg-blue-50" },
-];
+export default function FeedbackPanel({ isOpen, onClose, query, result }: FeedbackPanelProps) {
+  const [type, setType] = useState<FeedbackType | null>(null);
+  const [comment, setComment] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [sent, setSent] = useState(false);
 
-export default function FeedbackPanel({ queryId, question, plan, result, onSubmit }: FeedbackPanelProps) {
-  const [submitted, setSubmitted] = useState(false);
-  const [comment, setComment] = useState("");
-  const [selectedType, setSelectedType] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  if (!isOpen) return null;
 
-  const handleSubmit = async () => {
-    if (!selectedType) return;
-    setLoading(true);
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!type) return;
+
+    setSubmitting(true);
     try {
-      const response = await fetch(`${API_URL}/api/v1/feedback/submit`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+      await fetch('/api/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          query_id: queryId,
-          user_question: question,
-          generated_plan: plan || {},
-          execution_result: result || {},
-          feedback_type: selectedType,
-          comment: comment || null,
+          query,
+          feedback_type: type,
+          comment,
+          result_summary: result ? JSON.stringify(result).slice(0, 500) : '',
         }),
       });
-      if (response.ok) {
-        setSubmitted(true);
-        setTimeout(() => onSubmit?.(), 1500);
-      }
-    } catch (e) {
-      console.error("خطا در ارسال نظر:", e);
+      setSent(true);
+      setTimeout(() => {
+        setSent(false);
+        setType(null);
+        setComment('');
+        onClose();
+      }, 2000);
+    } catch (error) {
+      console.error('Feedback submit error:', error);
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
-  if (submitted) {
-    return (
-      <div className="p-5 bg-gradient-to-l from-green-50 to-emerald-50 border border-green-200 rounded-2xl text-center animate-fade-in">
-        <div className="text-3xl mb-2">🎉</div>
-        <p className="text-green-800 font-bold text-sm">سپاسگزاریم!</p>
-        <p className="text-xs text-green-600 mt-1">نظر شما به بهبود سیستم کمک می‌کند</p>
-      </div>
-    );
-  }
-
   return (
-    <div className="p-4 bg-white border border-slate-200 rounded-2xl shadow-sm space-y-3 animate-fade-in">
-      <div className="flex items-center gap-2">
-        <span className="text-lg">📝</span>
-        <p className="text-sm font-bold text-slate-700">این نتیجه چطور بود؟</p>
-      </div>
-
-      <div className="grid grid-cols-2 gap-2">
-        {FEEDBACK_TYPES.map((t) => (
-          <button
-            key={t.key}
-            onClick={() => setSelectedType(t.key)}
-            className={`flex items-center gap-1.5 px-3 py-2.5 text-xs font-semibold rounded-xl border-2 transition ${
-              selectedType === t.key ? t.active : `bg-white ${t.idle}`
-            }`}
-          >
-            <span>{t.icon}</span>
-            {t.label}
-          </button>
-        ))}
-      </div>
-
-      {selectedType && (
-        <div className="space-y-2 animate-fade-in">
-          <textarea
-            placeholder="توضیح بیشتر (اختیاری)..."
-            value={comment}
-            onChange={(e) => setComment(e.target.value)}
-            className="w-full p-3 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none resize-none"
-            rows={2}
-          />
-          <button
-            onClick={handleSubmit}
-            disabled={loading}
-            className="w-full py-2.5 bg-slate-800 text-white text-sm font-semibold rounded-xl hover:bg-slate-900 disabled:opacity-50 transition"
-          >
-            {loading ? "در حال ارسال..." : "ثبت نظر"}
+    <div className="fixed z-40 md:bottom-6 md:right-6 md:left-auto md:top-auto bottom-4 left-4 right-4 top-auto" dir="rtl">
+      <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="font-semibold text-slate-800">بازخورد شما</h3>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 text-xl">
+            ✕
           </button>
         </div>
-      )}
+
+        {sent ? (
+          <div className="text-center py-6">
+            <p className="text-lg font-semibold text-green-600">🙏 ممنون از شما</p>
+            <p className="text-sm text-slate-500 mt-2">بازخورد ثبت شد و به بهبود سامانه کمک می‌کند.</p>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <p className="text-sm text-slate-600">
+              لطفاً پس از مشاهده نتیجه، نظر خود را ثبت کنید:
+            </p>
+
+            <div className="grid grid-cols-2 gap-2">
+              {(Object.keys(labels) as FeedbackType[]).map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setType(t)}
+                  className={`rounded-lg border px-3 py-2 text-sm transition ${
+                    type === t
+                      ? `${colors[t]} ring-2 ring-offset-1`
+                      : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  {labels[t]}
+                </button>
+              ))}
+            </div>
+
+            <textarea
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+              placeholder="توضیح اختیاری... مثلاً این نتیجه چه مشکلی دارد؟"
+              className="w-full rounded-lg border border-slate-200 p-3 text-sm focus:border-green-500 focus:outline-none resize-none"
+              rows={3}
+            />
+
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex-1 rounded-lg bg-slate-100 px-4 py-2 text-sm text-slate-700 hover:bg-slate-200"
+              >
+                بعداً
+              </button>
+              <button
+                type="submit"
+                disabled={!type || submitting}
+                className="flex-1 rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
+              >
+                {submitting ? 'در حال ثبت...' : 'ثبت نظر'}
+              </button>
+            </div>
+          </form>
+        )}
+      </div>
     </div>
   );
 }
