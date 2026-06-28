@@ -1,164 +1,155 @@
-"use client"
+"use client";
+import { useEffect, useRef, useImperativeHandle, forwardRef } from "react";
+import maplibregl from "maplibre-gl";
+import "maplibre-gl/dist/maplibre-gl.css";
 
-import { useEffect, useRef } from "react"
-import { MapData } from "@/types"
-
-interface Props {
-  data: MapData
-  mapRef?: React.MutableRefObject<any>
-  selectedIndex?: number | null
+interface MapViewProps {
+  response?: any;
+  onMarkerClick?: (feature: any) => void;
 }
 
-export default function MapView({ data, mapRef: externalMapRef, selectedIndex }: Props) {
-  const containerRef = useRef<HTMLDivElement>(null)
-  const internalMapRef = useRef<any>(null)
-  const mapRef = externalMapRef || internalMapRef
+export interface MapViewRef {
+  zoomToFeature: (feature: any) => void;
+}
+
+const MapView = forwardRef<MapViewRef, MapViewProps>(({ response, onMarkerClick }, ref) => {
+  const mapContainer = useRef<HTMLDivElement>(null);
+  const map = useRef<maplibregl.Map | null>(null);
+  const markersRef = useRef<maplibregl.Marker[]>([]);
+
+  useImperativeHandle(ref, () => ({
+    zoomToFeature: (feature: any) => {
+      if (!map.current || !feature) return;
+      
+      let coords: [number, number] | null = null;
+      
+      if (feature.geometry?.coordinates) {
+        coords = feature.geometry.coordinates;
+      } else if (feature.coordinates) {
+        coords = feature.coordinates;
+      } else if (feature.lat && feature.lon) {
+        coords = [feature.lon, feature.lat];
+      } else if (feature.lat && feature.lng) {
+        coords = [feature.lng, feature.lat];
+      } else if (feature.latitude && feature.longitude) {
+        coords = [feature.longitude, feature.latitude];
+      }
+      
+      if (coords) {
+        map.current.flyTo({
+          center: [coords[0], coords[1]],
+          zoom: 16,
+          duration: 1500,
+          essential: true,
+        });
+      }
+    },
+  }));
 
   useEffect(() => {
-    if (!containerRef.current) return
+    if (!mapContainer.current || map.current) return;
 
-    const init = async () => {
-      const maplibregl = (await import("maplibre-gl")).default
-      await import("maplibre-gl/dist/maplibre-gl.css")
-
-      if (mapRef.current) {
-        mapRef.current.remove()
-        mapRef.current = null
-      }
-
-      const map = new maplibregl.Map({
-        container: containerRef.current!,
-        style: {
-          version: 8,
-          sources: {
-            osm: {
-              type: "raster",
-              tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
-              tileSize: 256,
-              attribution: "© OpenStreetMap contributors",
-            },
+    map.current = new maplibregl.Map({
+      container: mapContainer.current,
+      style: {
+        version: 8,
+        sources: {
+          "osm-tiles": {
+            type: "raster",
+            tiles: [
+              "https://a.tile.openstreetmap.org/{z}/{x}/{y}.png",
+              "https://b.tile.openstreetmap.org/{z}/{x}/{y}.png",
+              "https://c.tile.openstreetmap.org/{z}/{x}/{y}.png",
+            ],
+            tileSize: 256,
+            attribution: "© OpenStreetMap contributors",
           },
-          layers: [{ id: "osm", type: "raster", source: "osm" }],
         },
-        center: data.center,
-        zoom: data.zoom,
-      })
-
-      map.on("load", () => {
-        map.addSource("results", {
-          type: "geojson",
-          data: data.geojson,
-        })
-
-        // نقاط عادی
-        map.addLayer({
-          id: "results-circle",
-          type: "circle",
-          source: "results",
-          filter: ["==", ["geometry-type"], "Point"],
-          paint: {
-            "circle-radius": [
-              "case",
-              ["boolean", ["feature-state", "selected"], false],
-              10,
-              6,
-            ],
-            "circle-color": [
-              "case",
-              ["boolean", ["feature-state", "selected"], false],
-              "#dc2626",
-              "#2563eb",
-            ],
-            "circle-stroke-color": "#ffffff",
-            "circle-stroke-width": 2,
-            "circle-opacity": 0.9,
+        layers: [
+          {
+            id: "osm-layer",
+            type: "raster",
+            source: "osm-tiles",
+            minzoom: 0,
+            maxzoom: 19,
           },
+        ],
+      },
+      center: [51.389, 35.6892],
+      zoom: 11,
+    });
+
+    map.current.addControl(new maplibregl.NavigationControl(), "top-left");
+    map.current.addControl(new maplibregl.ScaleControl(), "bottom-left");
+  }, []);
+
+  useEffect(() => {
+    if (!map.current || !response?.success) return;
+
+    markersRef.current.forEach((marker) => marker.remove());
+    markersRef.current = [];
+
+    // استخراج نقاط از response.map.geojson.features
+    const features = response.map?.geojson?.features || [];
+    console.log("Features found:", features.length);
+
+    if (features.length > 0) {
+      const bounds = new maplibregl.LngLatBounds();
+
+      features.forEach((feature: any, index: number) => {
+        if (feature.geometry?.type !== "Point") return;
+        
+        const [lng, lat] = feature.geometry.coordinates;
+        const props = feature.properties || {};
+
+        const popupContent = document.createElement("div");
+        popupContent.className = "marker-popup";
+        popupContent.innerHTML = `
+          <div class="marker-popup-title">${props.name || `نتیجه ${index + 1}`}</div>
+          ${props.amenity ? `<div class="marker-popup-content">نوع: ${props.amenity}</div>` : ""}
+          <div class="marker-popup-coords">${lat.toFixed(6)}, ${lng.toFixed(6)}</div>
+        `;
+
+        const popup = new maplibregl.Popup({
+          offset: 25,
+          closeButton: true,
+          closeOnClick: true,
+          maxWidth: "300px",
+        }).setDOMContent(popupContent);
+
+        const marker = new maplibregl.Marker({
+          color: "#3b82f6",
+          scale: 1.2,
         })
+          .setLngLat([lng, lat])
+          .setPopup(popup)
+          .addTo(map.current!);
 
-        // پولیگون‌ها
-        map.addLayer({
-          id: "results-fill",
-          type: "fill",
-          source: "results",
-          filter: ["==", ["geometry-type"], "Polygon"],
-          paint: {
-            "fill-color": "#2563eb",
-            "fill-opacity": 0.15,
-          },
-        })
+        marker.getElement().addEventListener("click", () => {
+          if (onMarkerClick) {
+            onMarkerClick(feature);
+          }
+        });
 
-        // خطوط
-        map.addLayer({
-          id: "results-line",
-          type: "line",
-          source: "results",
-          filter: ["in", ["geometry-type"], ["literal", ["LineString", "Polygon"]]],
-          paint: {
-            "line-color": "#2563eb",
-            "line-width": 2,
-          },
-        })
+        markersRef.current.push(marker);
+        bounds.extend([lng, lat]);
+      });
 
-        // Popup
-        map.on("click", "results-circle", (e: any) => {
-          const props = e.features[0].properties
-          const name = props.name || "بدون نام"
-          const type = props.type || "مکان"
-          new maplibregl.Popup()
-            .setLngLat(e.lngLat)
-            .setHTML(
-              `<div dir="rtl" class="text-right">
-                <strong class="text-gray-800">${name}</strong>
-                <div class="text-xs text-gray-500 mt-1">${type}</div>
-              </div>`
-            )
-            .addTo(map)
-        })
-
-        map.on("mouseenter", "results-circle", () => {
-          map.getCanvas().style.cursor = "pointer"
-        })
-        map.on("mouseleave", "results-circle", () => {
-          map.getCanvas().style.cursor = ""
-        })
-      })
-
-      mapRef.current = map
-    }
-
-    init()
-
-    return () => {
-      if (mapRef.current) {
-        mapRef.current.remove()
-        mapRef.current = null
+      if (!bounds.isEmpty()) {
+        map.current.fitBounds(bounds, {
+          padding: { top: 50, bottom: 50, left: 50, right: 50 },
+          maxZoom: 16,
+        });
       }
     }
-  }, [data])
-
-  // Highlight selected feature
-  useEffect(() => {
-    if (!mapRef.current || selectedIndex === null) return
-
-    const map = mapRef.current
-    const features = data.geojson.features || []
-
-    features.forEach((_, idx) => {
-      map.setFeatureState(
-        { source: "results", id: idx },
-        { selected: idx === selectedIndex }
-      )
-    })
-  }, [selectedIndex, data.geojson.features])
+  }, [response, onMarkerClick]);
 
   return (
-    <div
-      ref={containerRef}
-      className="w-full h-full bg-gray-100 relative"
-    >
-      <div className="absolute top-4 left-4 bg-white px-3 py-2 rounded-lg shadow text-xs text-gray-600 z-10 font-medium">
-        🗺️ OpenStreetMap
-      </div>
+    <div className="relative w-full h-full">
+      <div ref={mapContainer} className="w-full h-full" />
     </div>
-  )
-}
+  );
+});
+
+MapView.displayName = "MapView";
+export default MapView;

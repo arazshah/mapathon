@@ -4,15 +4,14 @@ WORKDIR /app
 
 # نصب dependencies
 COPY package*.json ./
-RUN npm ci
+RUN npm install
 
 COPY . .
 
-# متغیر backend URL - در Coolify از طریق build arg تنظیم می‌شود
-ARG NEXT_PUBLIC_API_URL
+# متغیر backend URL
+ARG NEXT_PUBLIC_API_URL=http://localhost:8000
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 
-# Build با standalone output
 RUN npm run build
 
 # --- Production image ---
@@ -20,15 +19,10 @@ FROM node:20-alpine AS runner
 
 WORKDIR /app
 ENV NODE_ENV=production
-ENV PORT=3000
-ENV HOSTNAME=0.0.0.0
 
-# کپی فایل‌های ضروری
+COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
-
-# کپی پوشه public اگر وجود دارد
-COPY --from=builder /app/public* ./public/
 
 EXPOSE 3000
 

@@ -10,12 +10,12 @@ from pydantic import BaseModel
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 from app.models.feedback import QueryFeedback
+from app.config import settings
 
 router = APIRouter(prefix="/api/v1/feedback", tags=["feedback"])
 
-DATABASE_URL = os.getenv("FEEDBACK_DB_URL", "sqlite:///./data/mapathon_feedback.db")
+DATABASE_URL = settings.feedback_db_url
 
-# ساخت پوشه دیتابیس اگر وجود ندارد (برای SQLite)
 if DATABASE_URL.startswith("sqlite:///./"):
     db_path = DATABASE_URL.replace("sqlite:///./", "")
     db_dir = os.path.dirname(db_path)
@@ -24,8 +24,7 @@ if DATABASE_URL.startswith("sqlite:///./"):
 
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 
-# رمز داشبورد از .env
-DASHBOARD_PASSWORD = os.getenv("DASHBOARD_PASSWORD", "admin")
+DASHBOARD_PASSWORD = settings.dashboard_password
 
 
 def verify_password(x_dashboard_password: str = Header(None)):

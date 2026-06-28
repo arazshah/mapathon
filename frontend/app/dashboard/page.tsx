@@ -1,176 +1,233 @@
 "use client";
-
-import { API_URL } from "@/app/lib/api";
 import { useState, useEffect } from "react";
+import { BarChart3, ArrowLeft, Lock, TrendingUp, MessageSquare, CheckCircle, XCircle, Lightbulb } from "lucide-react";
+import Link from "next/link";
 
-export default function Dashboard() {
-  const [authenticated, setAuthenticated] = useState(false);
+export default function DashboardPage() {
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
+  const [authed, setAuthed] = useState(false);
   const [stats, setStats] = useState<any>(null);
-  const [recent, setRecent] = useState<any[]>([]);
+  const [feedbacks, setFeedbacks] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  // بررسی توکن ذخیره‌شده
   useEffect(() => {
-    const saved = sessionStorage.getItem("dashboard_token");
-    if (saved) {
-      setPassword(saved);
-      loadData(saved);
+    const saved = sessionStorage.getItem("dashboard_auth");
+    const token = sessionStorage.getItem("dashboard_token");
+    if (saved === "true" && token) {
+      setAuthed(true);
+      fetchData(token);
     }
   }, []);
 
-  const loadData = async (pass: string) => {
+  const handleLogin = async () => {
     setLoading(true);
+    setError("");
+    
     try {
-      const [s, r] = await Promise.all([
-        fetch(`${API_URL}/api/v1/feedback/stats`, {
-          headers: { "x-dashboard-password": pass },
-        }),
-        fetch(`${API_URL}/api/v1/feedback/recent`, {
-          headers: { "x-dashboard-password": pass },
-        }),
-      ]);
-      if (s.status === 401) {
-        setError("رمز عبور نادرست است");
-        sessionStorage.removeItem("dashboard_token");
-        setAuthenticated(false);
-        return;
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+      const res = await fetch(`${apiUrl}/api/v1/feedback/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password }),
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success) {
+          sessionStorage.setItem("dashboard_auth", "true");
+          sessionStorage.setItem("dashboard_token", data.token);
+          setAuthed(true);
+          fetchData(data.token);
+        }
+      } else {
+        const errData = await res.json();
+        setError(errData.detail || "رمز عبور نادرست است");
       }
-      const statsData = await s.json();
-      const recentData = await r.json();
-      setStats(statsData);
-      setRecent(recentData.feedbacks || []);
-      setAuthenticated(true);
-      sessionStorage.setItem("dashboard_token", pass);
-      setError("");
-    } catch {
-      setError("اتصال به سرور برقرار نشد");
+    } catch (err) {
+      setError("خطا در اتصال به سرور");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (password.trim()) loadData(password);
+  const fetchData = async (token: string) => {
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+      
+      const statsRes = await fetch(`${apiUrl}/api/v1/feedback/stats`, {
+        headers: { "x-dashboard-password": token }
+      });
+      if (statsRes.ok) {
+        setStats(await statsRes.json());
+      }
+
+      const recentRes = await fetch(`${apiUrl}/api/v1/feedback/recent?limit=20`, {
+        headers: { "x-dashboard-password": token }
+      });
+      if (recentRes.ok) {
+        const recentData = await recentRes.json();
+        setFeedbacks(recentData.feedbacks || []);
+      }
+    } catch (err) {
+      console.error("خطا در دریافت داده‌ها:", err);
+    }
   };
 
-  const logout = () => {
-    sessionStorage.removeItem("dashboard_token");
-    setAuthenticated(false);
-    setPassword("");
-    setStats(null);
-    setRecent([]);
-  };
-
-  const TYPE_LABELS: Record<string, { label: string; color: string }> = {
-    correct: { label: "✅ صحیح", color: "bg-green-100 text-green-700" },
-    wrong_result: { label: "⚠️ اشتباه", color: "bg-amber-100 text-amber-700" },
-    misunderstood: { label: "❌ نفهمید", color: "bg-red-100 text-red-700" },
-    suggestion: { label: "💡 پیشنهاد", color: "bg-blue-100 text-blue-700" },
-  };
-
-  // صفحه ورود
-  if (!authenticated) {
+  if (!authed) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
-        <form
-          onSubmit={handleLogin}
-          className="bg-white rounded-3xl shadow-xl p-8 w-full max-w-sm"
-        >
-          <div className="text-center mb-6">
-            <div className="text-4xl mb-2">🔒</div>
-            <h1 className="text-xl font-bold text-slate-800">ورود به داشبورد</h1>
-            <p className="text-xs text-slate-400 mt-1">رمز عبور را وارد کنید</p>
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
+        <div className="w-full max-w-md">
+          <div className="bg-slate-900 rounded-2xl p-8 border border-slate-800">
+            <div className="flex items-center gap-3 mb-6">
+              <Link href="/" className="text-slate-400 hover:text-white">
+                <ArrowLeft size={20} />
+              </Link>
+              <div className="flex items-center gap-2">
+                <BarChart3 className="text-blue-500" size={24} />
+                <h1 className="text-xl font-bold text-white">داشبورد مپ آتون</h1>
+              </div>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm text-slate-400 mb-2">رمز عبور</label>
+                <div className="relative">
+                  <Lock size={18} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleLogin()}
+                    placeholder="رمز عبور را وارد کنید"
+                    className="w-full bg-slate-800 text-white rounded-lg pr-10 pl-4 py-3 border border-slate-700 focus:border-blue-500 focus:outline-none text-sm"
+                  />
+                </div>
+              </div>
+
+              {error && (
+                <div className="bg-red-900/30 border border-red-700/50 text-red-400 rounded-lg p-3 text-sm">
+                  {error}
+                </div>
+              )}
+
+              <button
+                onClick={handleLogin}
+                disabled={loading || !password}
+                className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-slate-700 text-white rounded-lg py-3 transition-all text-sm font-medium"
+              >
+                {loading ? "در حال ورود..." : "ورود"}
+              </button>
+            </div>
           </div>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="رمز عبور"
-            className="w-full p-3 border border-slate-200 rounded-2xl text-center focus:ring-2 focus:ring-blue-500 outline-none mb-3"
-          />
-          {error && <p className="text-red-500 text-xs text-center mb-3">{error}</p>}
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-3 bg-slate-800 text-white font-semibold rounded-2xl hover:bg-slate-900 disabled:opacity-50 transition"
-          >
-            {loading ? "در حال بررسی..." : "ورود"}
-          </button>
-          <a href="/" className="block text-center text-xs text-slate-400 hover:text-blue-600 mt-4">
-            ← بازگشت به سایت
-          </a>
-        </form>
+        </div>
       </div>
     );
   }
 
-  // داشبورد
   return (
-    <div className="min-h-screen bg-slate-50 p-6">
-      <div className="max-w-4xl mx-auto">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold text-slate-800">📊 داشبورد نظرات</h1>
-          <div className="flex gap-3">
-            <button onClick={logout} className="text-sm text-red-500 hover:underline">
-              خروج
-            </button>
-            <a href="/" className="text-sm text-blue-600 hover:underline">
-              ← بازگشت
-            </a>
+    <div className="min-h-screen bg-slate-950 p-6 overflow-y-auto">
+      <div className="max-w-6xl mx-auto">
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-3">
+            <Link href="/" className="text-slate-400 hover:text-white">
+              <ArrowLeft size={20} />
+            </Link>
+            <BarChart3 className="text-blue-500" size={24} />
+            <h1 className="text-2xl font-bold text-white">داشبورد مپ آتون</h1>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
-          <StatCard label="کل نظرات" value={stats?.total_queries} color="from-slate-600 to-slate-700" />
-          <StatCard label="صحیح" value={stats?.correct} color="from-green-500 to-green-600" />
-          <StatCard label="اشتباه" value={stats?.wrong_result} color="from-amber-500 to-amber-600" />
-          <StatCard label="نفهمید" value={stats?.misunderstood} color="from-red-500 to-red-600" />
-          <StatCard label="دقت" value={stats?.accuracy_rate} color="from-blue-500 to-blue-600" />
-        </div>
+        {stats && (
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
+            <div className="bg-slate-900 rounded-xl p-6 border border-slate-800">
+              <div className="flex items-center gap-2 mb-2">
+                <TrendingUp className="text-blue-500" size={20} />
+                <span className="text-slate-400 text-sm">کل کوئری‌ها</span>
+              </div>
+              <p className="text-3xl font-bold text-white">{stats.total_queries}</p>
+            </div>
 
-        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-          <div className="px-5 py-3 border-b border-slate-100">
-            <h2 className="font-bold text-slate-700">آخرین نظرات</h2>
+            <div className="bg-slate-900 rounded-xl p-6 border border-slate-800">
+              <div className="flex items-center gap-2 mb-2">
+                <CheckCircle className="text-green-500" size={20} />
+                <span className="text-slate-400 text-sm">صحیح</span>
+              </div>
+              <p className="text-3xl font-bold text-green-500">{stats.correct}</p>
+            </div>
+
+            <div className="bg-slate-900 rounded-xl p-6 border border-slate-800">
+              <div className="flex items-center gap-2 mb-2">
+                <XCircle className="text-red-500" size={20} />
+                <span className="text-slate-400 text-sm">نادرست</span>
+              </div>
+              <p className="text-3xl font-bold text-red-500">{stats.wrong_result}</p>
+            </div>
+
+            <div className="bg-slate-900 rounded-xl p-6 border border-slate-800">
+              <div className="flex items-center gap-2 mb-2">
+                <MessageSquare className="text-yellow-500" size={20} />
+                <span className="text-slate-400 text-sm">اشتباه فهمیده</span>
+              </div>
+              <p className="text-3xl font-bold text-yellow-500">{stats.misunderstood}</p>
+            </div>
+
+            <div className="bg-slate-900 rounded-xl p-6 border border-slate-800">
+              <div className="flex items-center gap-2 mb-2">
+                <Lightbulb className="text-purple-500" size={20} />
+                <span className="text-slate-400 text-sm">پیشنهاد</span>
+              </div>
+              <p className="text-3xl font-bold text-purple-500">{stats.suggestion}</p>
+            </div>
           </div>
-          {recent.length === 0 ? (
-            <p className="text-center text-slate-400 py-10 text-sm">هنوز نظری ثبت نشده</p>
-          ) : (
-            <ul className="divide-y divide-slate-100">
-              {recent.map((f, i) => {
-                const t = TYPE_LABELS[f.feedback_type] || { label: f.feedback_type, color: "bg-slate-100" };
-                return (
-                  <li key={i} className="px-5 py-3">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-slate-800 truncate">{f.question}</p>
-                        {f.comment && <p className="text-xs text-slate-500 mt-1">💬 {f.comment}</p>}
-                        <p className="text-[11px] text-slate-300 mt-1">
-                          {new Date(f.created_at).toLocaleString("fa-IR")}
-                        </p>
-                      </div>
-                      <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${t.color}`}>
-                        {t.label}
-                      </span>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
+        )}
+
+        {stats && (
+          <div className="bg-slate-900 rounded-xl p-6 border border-slate-800 mb-8">
+            <div className="flex items-center justify-between">
+              <span className="text-slate-400">نرخ دقت سیستم</span>
+              <span className="text-2xl font-bold text-blue-500">{stats.accuracy_rate}</span>
+            </div>
+            <div className="mt-4 bg-slate-800 rounded-full h-3 overflow-hidden">
+              <div 
+                className="bg-gradient-to-r from-blue-500 to-green-500 h-full rounded-full transition-all duration-500"
+                style={{ width: stats.accuracy_rate }}
+              />
+            </div>
+          </div>
+        )}
+
+        <div className="bg-slate-900 rounded-xl p-6 border border-slate-800">
+          <h2 className="text-lg font-semibold text-white mb-4">آخرین نظرات</h2>
+          <div className="space-y-3">
+            {feedbacks.length === 0 ? (
+              <p className="text-slate-500 text-center py-8">هنوز نظری ثبت نشده است</p>
+            ) : (
+              feedbacks.map((fb, i) => (
+                <div key={i} className="bg-slate-800/50 rounded-lg p-4 border border-slate-700/50">
+                  <div className="flex items-start justify-between mb-2">
+                    <span className="text-sm text-slate-200">{fb.question}</span>
+                    <span className={`text-xs px-2 py-1 rounded-full ${
+                      fb.feedback_type === "correct" ? "bg-green-900/50 text-green-400" :
+                      fb.feedback_type === "wrong_result" ? "bg-red-900/50 text-red-400" :
+                      fb.feedback_type === "misunderstood" ? "bg-yellow-900/50 text-yellow-400" :
+                      "bg-purple-900/50 text-purple-400"
+                    }`}>
+                      {fb.feedback_type}
+                    </span>
+                  </div>
+                  {fb.comment && (
+                    <p className="text-xs text-slate-400 mt-2">{fb.comment}</p>
+                  )}
+                  <p className="text-xs text-slate-600 mt-2">
+                    {new Date(fb.created_at).toLocaleString("fa-IR")}
+                  </p>
+                </div>
+              ))
+            )}
+          </div>
         </div>
       </div>
-    </div>
-  );
-}
-
-function StatCard({ label, value, color }: { label: string; value: any; color: string }) {
-  return (
-    <div className={`bg-gradient-to-br ${color} rounded-2xl p-4 text-white shadow-md`}>
-      <p className="text-2xl font-bold">{value ?? 0}</p>
-      <p className="text-xs opacity-80 mt-1">{label}</p>
     </div>
   );
 }
