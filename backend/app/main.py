@@ -1,38 +1,26 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api.v1.query import router as query_router
-from app.api.routes.feedback import router as feedback_router, engine
-from app.models.feedback import Base
+import os
 
-app = FastAPI(title="Mapathon API")
+app = FastAPI()
 
-# ساخت خودکار جداول دیتابیس (از جمله query_feedback)
-Base.metadata.create_all(bind=engine)
-
-# ✅ CORS برای Next.js
+# CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://192.168.1.104:3000",
-        "https://mapathon.ir",
-    ],
+    allow_origins=["*"],
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Router‌ها
-app.include_router(query_router)
-app.include_router(feedback_router)
+@app.get("/")
+async def root():
+    return {"message": "Mapathon Backend is running!"}
 
 @app.get("/health")
-def health():
-    return {"status": "ok"}
-
-@app.get("/health")
-async def health_check():
+async def health():
     return {"status": "healthy"}
 
-@app.get("/health")
-async def health_check():
-    return {"status": "healthy"}
+@app.get("/api/test")
+async def test():
+    return {"test": "success", "env": os.getenv("DATABASE_URL", "not set")[:20]}
