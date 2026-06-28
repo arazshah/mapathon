@@ -16,7 +16,17 @@ class Settings:
         self.dashboard_password = os.getenv("DASHBOARD_PASSWORD", "admin")
         
         # تنظیمات CORS
-        self.cors_origins = os.getenv("CORS_ORIGINS", "*").split(",")
+        origins = os.getenv("CORS_ORIGINS", "")
+        if origins:
+            self.cors_origins = [o.strip() for o in origins.split(",") if o.strip()]
+        else:
+            self.cors_origins = [
+                "https://mapathon.ir",
+                "https://www.mapathon.ir",
+                "https://api.mapathon.ir",
+                "http://localhost:3000",
+                "http://127.0.0.1:3000",
+            ]
 
 @lru_cache()
 def get_settings():

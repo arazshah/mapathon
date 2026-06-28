@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from app.core.database import get_db
 from app.core.executor import execute_plan
 
-router = APIRouter(prefix="/query", tags=["query"])
+router = APIRouter(tags=["query"])
 
 
 class QueryRequest(BaseModel):
@@ -25,7 +25,7 @@ class QueryResponse(BaseModel):
     error: str | None = None
 
 
-@router.post("/", response_model=QueryResponse)
+@router.post("/query", response_model=QueryResponse)
 def query(request: QueryRequest, db: Session = Depends(get_db)):
     """
     دریافت سوال زبان طبیعی و پاسخ GIS

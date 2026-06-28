@@ -7,7 +7,7 @@ from datetime import datetime
 from app.core.database import get_db
 from app.models.feedback import Feedback
 
-router = APIRouter(prefix="/feedback", tags=["feedback"])
+router = APIRouter(tags=["feedback"])
 
 
 class FeedbackCreate(BaseModel):
@@ -29,7 +29,7 @@ class FeedbackResponse(BaseModel):
         from_attributes = True
 
 
-@router.post("/", response_model=FeedbackResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/feedback", response_model=FeedbackResponse, status_code=status.HTTP_201_CREATED)
 def submit_feedback(feedback: FeedbackCreate, db: Session = Depends(get_db)):
     """
     ثبت نظر جدید
@@ -46,7 +46,7 @@ def submit_feedback(feedback: FeedbackCreate, db: Session = Depends(get_db)):
     return db_feedback
 
 
-@router.get("/", response_model=list[FeedbackResponse])
+@router.get("/feedback", response_model=list[FeedbackResponse])
 def list_feedback(limit: int = 100, db: Session = Depends(get_db)):
     """
     دریافت لیست نظرات
@@ -54,7 +54,7 @@ def list_feedback(limit: int = 100, db: Session = Depends(get_db)):
     return db.query(Feedback).order_by(Feedback.created_at.desc()).limit(limit).all()
 
 
-@router.get("/stats")
+@router.get("/feedback/stats")
 def feedback_stats(db: Session = Depends(get_db)):
     """
     آمار کلی نظرات
