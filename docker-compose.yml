@@ -11,6 +11,8 @@ services:
       - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o-mini}
       - DASHBOARD_PASSWORD=${DASHBOARD_PASSWORD:-admin}
       - CORS_ORIGINS=${CORS_ORIGINS:-*}
+    healthcheck:
+      disable: true
 
   frontend:
     build:
@@ -22,3 +24,5 @@ services:
       - "3000:3000"
     environment:
       - NODE_ENV=production
+    healthcheck:
+      disable: true
