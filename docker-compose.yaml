@@ -2,21 +2,15 @@ services:
   backend:
     build: ./backend
     restart: always
+    ports:
+      - "8000:8000"
     environment:
       - DATABASE_URL=${DATABASE_URL}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - OPENAI_BASE_URL=${OPENAI_BASE_URL:-https://api.openai.com/v1}
       - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o-mini}
-      - DASHBOARD_PASSWORD=${DASHBOARD_PASSWORD}
+      - DASHBOARD_PASSWORD=${DASHBOARD_PASSWORD:-admin}
       - CORS_ORIGINS=${CORS_ORIGINS:-*}
-    healthcheck:
-      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/health')"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 5s
-    networks:
-      - mapathon
 
   frontend:
     build:
@@ -24,14 +18,7 @@ services:
       args:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
     restart: always
-    depends_on:
-      backend:
-        condition: service_healthy
+    ports:
+      - "3000:3000"
     environment:
       - NODE_ENV=production
-    networks:
-      - mapathon
-
-networks:
-  mapathon:
-    driver: bridge
