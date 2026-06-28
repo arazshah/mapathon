@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
-from app.core.database import get_db
+from app.core.database import get_postgis_db
 from app.core.executor import execute_plan
 
 router = APIRouter(tags=["query"])
@@ -26,9 +26,9 @@ class QueryResponse(BaseModel):
 
 
 @router.post("/query", response_model=QueryResponse)
-def query(request: QueryRequest, db: Session = Depends(get_db)):
+def query(request: QueryRequest, db: Session = Depends(get_postgis_db)):
     """
-    دریافت سوال زبان طبیعی و پاسخ GIS
+    دریافت سوال زبان طبیعی و پاسخ GIS از PostGIS
     """
     try:
         result = execute_plan(request.question, db)
