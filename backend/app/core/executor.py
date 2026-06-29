@@ -1,12 +1,11 @@
-from sqlalchemy import text
 from app.core.llm_planner import create_plan
 from app.geo_tools.osm import (
-    geocode_place, find_pois_near, find_entity_by_name,
-    distance_between_places, area_of_place,
-)
+    geocode_place,
+    find_pois_near,
     find_entity_by_name,
-    geocode_place, find_pois_near, distance_between_places, area_of_place,
-    ENTITY_TAG_CONDITIONS,
+    distance_between_places,
+    area_of_place,
+    ENTITY_CONDITIONS,
 )
 from app.geo_tools.geometry import format_distance_persian, format_area_persian
 
@@ -31,45 +30,12 @@ def execute_plan(question: str, db) -> dict:
 
 def _error(message: str, plan: dict) -> dict:
     return {
-        "success": False, "error": message, "plan": plan,
-        "message": message, "type": "error",
+        "success": False,
+        "error": message,
+        "plan": plan,
+        "message": message,
+        "type": "error",
     }
-
-
-def _find_entity_by_name(db, entity_type: str, name: str) -> list:
-    """
-    جستجوی مستقیم یک نوع موجودیت بر اساس نام آن.
-    مثلاً 'مترو نواب' -> ایستگاه مترویی که نامش شامل نواب است.
-    """
-    tag_condition = ENTITY_TAG_CONDITIONS.get(entity_type)
-    if not tag_condition or ":pattern" in tag_condition:
-        return []
-
-    sql = text(f"""
-        SELECT 
-            osm_id, name, tags,
-            ST_Y(ST_Transform(way, 4326)) as lat,
-            ST_X(ST_Transform(way, 4326)) as lon
-        FROM planet_osm_point
-        WHERE {tag_condition}
-          AND name ILIKE :name
-        LIMIT 20
-    """)
-    rows = db.execute(sql, {"name": f"%{name}%"}).mappings().all()
-
-    results = []
-    for row in rows:
-        if row["lat"] is None:
-            continue
-        results.append({
-            "osm_id": row["osm_id"],
-            "name": row["name"] or "بدون نام",
-            "lat": float(row["lat"]),
-            "lon": float(row["lon"]),
-            "distance_meters": 0,
-            "tags": dict(row["tags"]) if row["tags"] else {},
-        })
-    return results
 
 
 def execute_find_nearby(plan: dict, db) -> dict:
@@ -81,8 +47,8 @@ def execute_find_nearby(plan: dict, db) -> dict:
         return _error("نام مکان مشخص نشده است.", plan)
 
     # استراتژی ۱: جستجوی مستقیم موجودیت با همان نام
-    # مثلاً 'مترو نواب' -> ایستگاهی که نامش نواب است
-    direct = _find_entity_by_name(db, entity_type, location_name)
+    # مثلاً «مترو نواب» → ایستگاهی که نامش نواب است
+    direct = find_entity_by_name(db, entity_type, location_name)
     if direct:
         return {
             "success": True,
@@ -95,10 +61,10 @@ def execute_find_nearby(plan: dict, db) -> dict:
             "plan": plan,
         }
 
-    # استراتژی ۲: geocode مکان، سپس جستجوی نزدیکی
+    # استراتژی ۲: geocode مکان، سپس جستجوی شعاعی
     center = geocode_place(db, location_name)
     if not center:
-        return _error(f"مکان '{location_name}' پیدا نشد.", plan)
+        return _error(f"مکان «{location_name}» پیدا نشد.", plan)
 
     places = find_pois_near(db, entity_type, center["lat"], center["lon"], radius)
 
@@ -126,17 +92,6 @@ def execute_find_nearby(plan: dict, db) -> dict:
     }
 
 
-def _label(entity_type: str) -> str:
-    labels = {
-        "metro": "ایستگاه مترو", "subway": "ایستگاه مترو",
-        "restaurant": "رستوران", "pharmacy": "داروخانه",
-        "hospital": "بیمارستان", "park": "پارک",
-        "school": "مدرسه", "cafe": "کافه", "bank": "بانک",
-        "fuel": "پمپ بنزین", "atm": "خودپرداز", "bus_stop": "ایستگاه اتوبوس",
-    }
-    return labels.get(entity_type, entity_type or "مورد")
-
-
 def execute_distance(plan: dict, db) -> dict:
     from_name = plan.get("location_name")
     to_name = plan.get("target_location")
@@ -146,7 +101,9 @@ def execute_distance(plan: dict, db) -> dict:
 
     result = distance_between_places(db, from_name, to_name)
     if not result:
-        return _error(f"یکی از مکان‌ها پیدا نشد: '{from_name}' یا '{to_name}'", plan)
+        return _error(
+            f"یکی از مکان‌ها پیدا نشد: «{from_name}» یا «{to_name}»", plan
+        )
 
     return {
         "success": True,
@@ -167,7 +124,9 @@ def execute_area(plan: dict, db) -> dict:
 
     result = area_of_place(db, location_name, entity_type)
     if not result:
-        return _error(f"مکان '{location_name}' برای محاسبه مساحت پیدا نشد.", plan)
+        return _error(
+            f"مکان «{location_name}» برای محاسبه مساحت پیدا نشد.", plan
+        )
 
     return {
         "success": True,
@@ -188,7 +147,7 @@ def execute_count(plan: dict, db) -> dict:
 
     center = geocode_place(db, location_name)
     if not center:
-        return _error(f"مکان '{location_name}' پیدا نشد.", plan)
+        return _error(f"مکان «{location_name}» پیدا نشد.", plan)
 
     places = find_pois_near(db, entity_type, center["lat"], center["lon"], radius)
 
@@ -210,7 +169,7 @@ def execute_info(plan: dict, db) -> dict:
 
     place = geocode_place(db, location_name)
     if not place:
-        return _error(f"مکان '{location_name}' پیدا نشد.", plan)
+        return _error(f"مکان «{location_name}» پیدا نشد.", plan)
 
     return {
         "success": True,
@@ -222,3 +181,23 @@ def execute_info(plan: dict, db) -> dict:
         "message": f"مکان «{place['name']}» یافت شد.",
         "plan": plan,
     }
+
+
+def _label(entity_type: str) -> str:
+    labels = {
+        "metro": "ایستگاه مترو",
+        "subway": "ایستگاه مترو",
+        "restaurant": "رستوران",
+        "pharmacy": "داروخانه",
+        "hospital": "بیمارستان",
+        "park": "پارک",
+        "school": "مدرسه",
+        "cafe": "کافه",
+        "bank": "بانک",
+        "fuel": "پمپ بنزین",
+        "atm": "خودپرداز",
+        "bus_stop": "ایستگاه اتوبوس",
+        "supermarket": "سوپرمارکت",
+        "hotel": "هتل",
+    }
+    return labels.get(entity_type, entity_type or "مورد")
